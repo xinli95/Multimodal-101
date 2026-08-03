@@ -29,12 +29,16 @@ parts:
       - file: 02-doc-understanding/theory.md
       - file: 02-doc-understanding/landscape.md
       - file: 02-doc-understanding/notebooks/README.md
+        sections:
+          - file: 02-doc-understanding/notebooks/01_pdf_to_markdown.ipynb
   - caption: 03 · 图像生成
     chapters:
       - file: 03-image-generation/overview.md
       - file: 03-image-generation/theory.md
       - file: 03-image-generation/landscape.md
       - file: 03-image-generation/notebooks/README.md
+        sections:
+          - file: 03-image-generation/notebooks/01_flux2_klein_local.ipynb
   - caption: 04 · 图像编辑
     chapters:
       - file: 04-image-editing/overview.md
