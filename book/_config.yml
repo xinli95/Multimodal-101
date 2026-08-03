@@ -1,0 +1,75 @@
+# Configuration based on the TeachBooks template (same setup as AI-101 / Speech-101).
+
+title: Multimodal-101
+
+author:
+  Xin Li, built with <a href="https://teachbooks.io">TeachBooks</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="license noopener noreferrer"">CC BY 4.0<img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt=""><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt=""></a>
+
+execute:
+  execute_notebooks: 'off'
+  cache: '_build/.jupyter_cache/'
+  exclude_patterns: []
+  timeout: 30
+  run_in_temp: false
+  allow_errors: false
+  stderr_output: show
+
+html:
+  use_multitoc_numbering: true
+  extra_footer: ''
+
+sphinx:
+  extra_extensions:
+    - teachbooks_favourites
+  local_extension: null
+  config:
+    language: en
+    html_js_files:
+      - https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js
+    thebe_config:
+      use_thebe_lite: true
+      exclude_patterns: ['**/_*.yml', '**/*.md', '**/*.ipynb']
+    html_favicon: 'figures/TB_favicon.ico'
+    html_baseurl: 'https://xinli95.github.io/Multimodal-101'
+    html_theme_options:
+      logo:
+        text: Multimodal-101
+      repository_url: 'https://github.com/xinli95/Multimodal-101'
+      path_to_docs: 'book'
+      repository_branch: 'main'
+      use_edit_page_button: true
+      use_repository_button: true
+      use_issues_button: true
+      launch_buttons:
+        thebe: true
+      announcement: ''
+    html_show_copyright: false
+    html_last_updated_fmt: ''
+    html_static_path: ['figures']
+    mathjax3_config:
+      chtml: {
+          mtextInheritFont: true,
+        }
+      loader:
+        load:
+          - 'ui/lazy'
+    keep_warnings: false
+    external_toc_exclude_missing: true
+    external_toc_path: '_toc.yml'
+
+teachbooks:
+  attribution_location: top
+  attribution_color: null
+
+bibtex_bibfiles:
+  - references.bib
+
+parse:
+  myst_enable_extensions:
+    - colon_fence
+    - dollarmath
+    - linkify
+    - substitution
+    - tasklist
+  myst_url_schemes: [mailto, http, https]
+  myst_dmath_double_inline: true

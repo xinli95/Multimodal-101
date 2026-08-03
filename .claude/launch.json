@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "book",
+      "runtimeExecutable": "/private/tmp/claude-501/-Users-xinli-Downloads-repo-Multimodal-101/1a33216f-3c1e-4d30-a319-15651203c3c0/scratchpad/bookenv/bin/python",
+      "runtimeArgs": ["-m", "http.server", "8734", "--directory", "book/_build/html"],
+      "port": 8734
+    }
+  ]
+}

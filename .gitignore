@@ -27,3 +27,6 @@ outputs/
 
 # 系统
 .DS_Store
+
+# Jupyter Book build
+book/_build/

@@ -13,4 +13,4 @@ VLM 最实用的落地场景：PDF/扫描件/表格/图表 → 结构化文本�
 
 - [theory.md](theory.md) — 原理与关键论文
 - [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks/](notebooks/) — 实践代码
+- [notebooks](notebooks/README.md) — 实践代码

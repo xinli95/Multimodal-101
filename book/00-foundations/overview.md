@@ -13,4 +13,4 @@
 
 - [theory.md](theory.md) — 原理与关键论文
 - [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks/](notebooks/) — 实践代码
+- [notebooks](notebooks/README.md) — 实践代码
