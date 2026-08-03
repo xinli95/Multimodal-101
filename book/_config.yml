@@ -42,7 +42,7 @@ sphinx:
       use_issues_button: true
       launch_buttons:
         thebe: true
-      announcement: ''
+      announcement: '<a href="https://xinli95.github.io/Multimodal-101/zh/">🌐 中文版</a>'
     html_show_copyright: false
     html_last_updated_fmt: ''
     html_static_path: ['figures']

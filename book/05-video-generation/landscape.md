@@ -1,38 +1,38 @@
-# Landscape · 视频生成
+# Landscape · Video Generation
 
-> **Last verified: 2026-08-02** — 本方向洗牌最快，超过 3 个月就该重查。
+> **Last verified: 2026-08-02** — this area reshuffles fastest; re-check after 3 months.
 
-## 开源 / 开放权重
+## Open / open-weight
 
-| 模型 | 机构 | License | 亮点 |
+| Model | Org | License | Highlights |
 |---|---|---|---|
-| **Wan 2.2** | 阿里 | Apache 2.0 | license 最干净的高质量选择；⚠️ Wan 2.5/2.6 **仅 API 未开源**，2.7 权重与 license 状态不明 |
-| **HunyuanVideo 1.5** | 腾讯 | 开放权重 | 8.3B 轻量，消费级 GPU 可跑 |
-| **LTX-2.3** | Lightricks | 分级商用（<$10M ARR 免费） | 唯一原生音视频联合生成的开源选择，4K |
-| Mochi / CogVideoX | Genmo / 智谱 | Apache 2.0 | 老一代，教学参考 |
+| **Wan 2.2** | Alibaba | Apache 2.0 | The cleanest license among high-quality options; ⚠️ Wan 2.5/2.6 are **API-only, not open**, and 2.7's weights/license status is murky |
+| **HunyuanVideo 1.5** | Tencent | open weights | 8.3B lightweight; runs on consumer GPUs |
+| **LTX-2.3** | Lightricks | tiered commercial (free under $10M ARR) | The only open option with native joint audio-video; 4K |
+| Mochi / CogVideoX | Genmo / Zhipu | Apache 2.0 | Previous generation; good teaching references |
 
-## 闭源前沿
+## Closed frontier
 
-| 模型 | 机构 | 亮点 |
+| Model | Org | Highlights |
 |---|---|---|
-| **Veo 3.1** | Google | 综合质量第一：原生 48kHz 同步音频 + 4K（2026-01 升级） |
-| **Seedance 2.5** | 字节 | 2026-06 发布：单次 30 秒、50 个多模态参考输入、3D 预演 |
-| **Kling 3.0** | 快手 | 2026-02 发布：音素级多角色对口型、运动控制,性价比 |
+| **Veo 3.1** | Google | Overall quality leader: native 48kHz synced audio + 4K (upgraded 2026-01) |
+| **Seedance 2.5** | ByteDance | Released 2026-06: 30s single pass, 50 multimodal reference inputs, 3D previz |
+| **Kling 3.0** | Kuaishou | Released 2026-02: phoneme-level multi-character lip sync, motion control, price/performance |
 
-⚠️ 已退役：**Sora 2 消费端 2026-04 下线，API 2026-09-24 关停** —— 教程不要依赖 Sora API。
+⚠️ Retired: **Sora 2 consumer product shut down 2026-04; API closes 2026-09-24** — do not build tutorials on the Sora API.
 
-## 选型速查
+## Quick chooser
 
-| 场景 | 推荐 |
+| Scenario | Pick |
 |---|---|
-| 本地实验 / 教学 | Wan 2.2（🔴 高显存）或 HunyuanVideo 1.5（🟡 可勉强） |
-| 商用私有化 | Wan 2.2（Apache 2.0） |
-| 最高质量 hero 片段 | Veo 3.1 API |
-| 长叙事 / 强参考控制 | Seedance 2.5 |
-| 生产实践共识 | 多模型路由：按镜头类型在 2–3 个模型间切换 |
+| Local experiments / teaching | Wan 2.2 (🔴 high VRAM) or HunyuanVideo 1.5 (🟡 barely) |
+| Commercial on-prem | Wan 2.2 (Apache 2.0) |
+| Highest-quality hero clips | Veo 3.1 API |
+| Long narrative / heavy reference control | Seedance 2.5 |
+| Production consensus | Multi-model routing: switch between 2–3 models by shot type |
 
-## 趋势判断
+## Where things are heading
 
-1. 开源视频与闭源差距仍明显（约一代），且头部玩家有"新版本闭源化"倾向（Wan 2.5+）。
-2. 原生音视频联合生成成为新基线。
-3. 实时/交互式生成（world model 方向）是下一个前沿。
+1. Open video still trails closed by roughly a generation, and leaders show a "new versions go closed" tendency (Wan 2.5+).
+2. Native joint audio-video generation is the new baseline.
+3. Real-time / interactive generation (the world-model direction) is the next frontier.

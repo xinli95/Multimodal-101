@@ -1,31 +1,31 @@
-# Landscape · 文档理解与 OCR
+# Landscape · Document Understanding & OCR
 
-> **Last verified: 2026-08-02** — 超过 6 个月请重新核实。
+> **Last verified: 2026-08-02** — re-check if this is more than 6 months old.
 
-## 开源专用模型
+## Open specialized models
 
-| 模型 | 机构 | 规模 | License | 亮点 |
+| Model | Org | Size | License | Highlights |
 |---|---|---|---|---|
-| **DeepSeek-OCR-2** | DeepSeek | ~3B | MIT | 2026-01 发布；grounded Markdown、高吞吐，"PDF→Markdown" 开源首选之一 |
-| **olmOCR-2** | AI2 | 8B | Apache 2.0 | 全开放（数据/训练/评测），OmniDocBench 均分 83+ |
-| PaddleOCR-VL-1.5 | 百度 | ~0.9B | Apache 2.0 | 极小参数量拿 SOTA 级效果，端侧/大批量友好 |
-| Chandra | Datalab | 9B | - | 多语言强 |
-| MinerU / Marker | 开源社区 | 流水线 | AGPL/GPL 注意 | 传统流水线派实用工具 |
+| **DeepSeek-OCR-2** | DeepSeek | ~3B | MIT | Released 2026-01; grounded Markdown, high throughput — a top open pick for "PDF → Markdown" |
+| **olmOCR-2** | AI2 | 8B | Apache 2.0 | Fully open (data/training/eval); OmniDocBench average 83+ |
+| PaddleOCR-VL-1.5 | Baidu | ~0.9B | Apache 2.0 | SOTA-class results at a tiny parameter count; edge/batch friendly |
+| Chandra | Datalab | 9B | - | Strong multilingual |
+| MinerU / Marker | community | pipeline | mind AGPL/GPL | Practical tools from the classical-pipeline school |
 
-## 通用 VLM 直接做文档
+## General VLMs on documents
 
-- Qwen3-VL / InternVL3.5 的 OCR 能力已很强，少量文档场景无需专用模型。
-- 闭源 API（Gemini、GPT-5、Claude）对复杂表格/手写体的鲁棒性仍是天花板，但成本高、无坐标 grounding（易幻觉且难溯源）。
+- Qwen3-VL / InternVL3.5 OCR is already strong; light document workloads may not need a specialist at all.
+- Closed APIs (Gemini, GPT-5, Claude) remain the robustness ceiling for complex tables/handwriting, but cost more and lack coordinate grounding (hallucination-prone and hard to trace).
 
-## 选型速查
+## Quick chooser
 
-| 场景 | 推荐 |
+| Scenario | Pick |
 |---|---|
-| 海量 PDF 批处理（自建 GPU） | DeepSeek-OCR-2 / olmOCR-2 |
-| 端侧或 CPU 环境 | PaddleOCR-VL-1.5 |
-| 少量高价值文档、格式极复杂 | 闭源 VLM API |
-| 需要可溯源（bbox 定位） | DeepSeek-OCR-2（grounded 输出） |
+| Bulk PDF processing (own GPUs) | DeepSeek-OCR-2 / olmOCR-2 |
+| Edge or CPU-only environment | PaddleOCR-VL-1.5 |
+| Few, high-value, extremely complex documents | Closed VLM APIs |
+| Traceability required (bbox provenance) | DeepSeek-OCR-2 (grounded output) |
 
-## 评测基准
+## Benchmarks
 
-- OmniDocBench（最全面）、OCRBench v2、olmOCR-Bench
+- OmniDocBench (most comprehensive), OCRBench v2, olmOCR-Bench

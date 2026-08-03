@@ -1,16 +1,16 @@
-# 02 · Document Understanding — 文档理解与 OCR
+# 02 · Document Understanding & OCR
 
-VLM 最实用的落地场景：PDF/扫描件/表格/图表 → 结构化文本。也是多模态 RAG 的入口。本章覆盖 OCR 专用 VLM 的设计思路（尤其是"光学上下文压缩"这一巧妙想法），并搭一条完整的 PDF → Markdown 流水线。
+The most practical deployment of VLMs: PDFs / scans / tables / charts → structured text. Also the entry point of multimodal RAG. This chapter covers the design of OCR-specialized VLMs — especially the clever idea of "optical context compression" — and builds a complete PDF → Markdown pipeline.
 
-## 学习目标
+## Learning goals
 
-- 理解通用 VLM 与 OCR 专用模型的差异（分辨率策略、输出格式、grounding）
-- 理解 DeepSeek-OCR 的核心洞察：用视觉 token 压缩长文本上下文
-- 跑通 PDF → Markdown 流水线，并用 OmniDocBench 思路评估质量
-- 知道什么时候该用专用 OCR 模型、什么时候直接用通用 VLM API
+- Understand how general VLMs differ from OCR-specialized models (resolution strategy, output format, grounding)
+- Understand the core insight of DeepSeek-OCR: compressing long text context through visual tokens
+- Build a PDF → Markdown pipeline and evaluate it OmniDocBench-style
+- Know when to reach for a specialized OCR model vs. a general VLM API
 
-## 内容
+## Contents
 
-- [theory.md](theory.md) — 原理与关键论文
-- [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks](notebooks/README.md) — 实践代码
+- [theory.md](theory.md) — principles and key papers
+- [landscape.md](landscape.md) — current state of play (with last-verified date)
+- [notebooks](notebooks/README.md) — hands-on code

@@ -30,3 +30,5 @@ outputs/
 
 # Jupyter Book build
 book/_build/
+
+book-zh/_build/

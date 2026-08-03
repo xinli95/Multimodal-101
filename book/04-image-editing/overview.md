@@ -1,16 +1,16 @@
-# 04 · Image Editing — 图像编辑
+# 04 · Image Editing
 
-2025 年后独立成型的赛道："对着一张图说人话，模型精确改图"。本章讲指令式编辑的原理（in-context 条件、参考图注入），实践对比开源（Qwen-Image-Edit、FLUX Kontext）与闭源（Nano Banana、GPT Image 2）。
+A track that became its own discipline after 2025: "talk to a picture in plain language and get precise edits back." This chapter explains how instruction-based editing works (in-context conditioning, reference-image injection) and compares open models (Qwen-Image-Edit, FLUX Kontext) against closed ones (Nano Banana, GPT Image 2).
 
-## 学习目标
+## Learning goals
 
-- 理解从 inpainting（画 mask）到 instruction editing（纯语言）的范式转变
-- 理解 in-context conditioning：参考图作为序列条件与目标图联合注意力
-- 掌握编辑的核心难题：改动局部性（不该变的别变）与身份一致性
-- 跑通开源编辑模型，与闭源 API 做同题对比
+- Understand the paradigm shift from inpainting (paint a mask) to instruction editing (pure language)
+- Understand in-context conditioning: reference images as sequence conditions in joint attention with the target
+- Grasp the two core hard problems: edit locality (don't touch what shouldn't change) and identity consistency
+- Run an open editing model and A/B it against closed APIs on the same tasks
 
-## 内容
+## Contents
 
-- [theory.md](theory.md) — 原理与关键论文
-- [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks](notebooks/README.md) — 实践代码
+- [theory.md](theory.md) — principles and key papers
+- [landscape.md](landscape.md) — current state of play (with last-verified date)
+- [notebooks](notebooks/README.md) — hands-on code

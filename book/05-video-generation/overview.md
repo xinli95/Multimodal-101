@@ -1,16 +1,16 @@
-# 05 · Video Generation — 视频生成
+# 05 · Video Generation
 
-图像生成向时间维的扩展：Video DiT、3D Causal VAE、时空注意力。实践本地跑 Wan 2.2 / HunyuanVideo 1.5，闭源侧调 Veo 3.1 API，并理解为什么视频是当下算力最烧钱的模态。
+Image generation extended into time: Video DiT, 3D causal VAE, spatiotemporal attention. In practice we run Wan 2.2 / HunyuanVideo 1.5 locally and call the Veo 3.1 API — and learn why video is today's most compute-hungry modality.
 
-## 学习目标
+## Learning goals
 
-- 理解视频生成相对图像新增的三个问题：时间一致性、算力爆炸、音视频同步
-- 掌握 3D Causal VAE 与时空注意力（full 3D vs 分解式）的设计取舍
-- 理解 I2V（图生视频）为何是生产中的主力路径
-- 本地跑通一个开源视频模型（低分辨率短片），调用 Veo API 对比
+- Understand the three new problems video adds over images: temporal consistency, compute explosion, audio-video sync
+- Master the design trade-offs of 3D causal VAEs and spatiotemporal attention (full 3D vs. factorized)
+- Understand why I2V (image-to-video) is the workhorse path in production
+- Run an open video model locally (short low-res clips) and compare with the Veo API
 
-## 内容
+## Contents
 
-- [theory.md](theory.md) — 原理与关键论文
-- [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks](notebooks/README.md) — 实践代码
+- [theory.md](theory.md) — principles and key papers
+- [landscape.md](landscape.md) — current state of play (with last-verified date)
+- [notebooks](notebooks/README.md) — hands-on code

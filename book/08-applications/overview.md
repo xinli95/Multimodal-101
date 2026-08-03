@@ -1,16 +1,16 @@
-# 08 · Applications — 应用与评测
+# 08 · Applications & Evaluation
 
-把前面各章组装成真实系统：多模态 RAG、多模态 Agent、以及"怎么科学地评估多模态系统"。这一章偏工程，是把教程知识转化为生产力的出口。
+Assembling the previous chapters into real systems: multimodal RAG, multimodal agents, and — crucially — how to evaluate multimodal systems scientifically. This chapter leans engineering; it is the exit ramp from tutorial knowledge to production value.
 
-## 学习目标
+## Learning goals
 
-- 搭建多模态 RAG：文档解析（02 章）+ 多模态嵌入检索 + VLM 生成
-- 理解多模态 Agent 的核心循环：截图理解 → 决策 → 操作（GUI agent）
-- 建立评测思维：自动指标、LLM-as-judge、arena 盲测各自的适用与陷阱
-- 了解生产工程问题：视觉 token 成本、延迟、缓存、模型路由
+- Build multimodal RAG: document parsing (ch. 02) + multimodal embedding retrieval + VLM generation
+- Understand the core loop of a multimodal agent: screenshot understanding → decision → action (GUI agents)
+- Develop evaluation instincts: automatic metrics, LLM-as-judge, arena blind tests — where each applies and where each traps you
+- Learn the production concerns: visual token cost, latency, caching, model routing
 
-## 内容
+## Contents
 
-- [theory.md](theory.md) — 原理与关键论文
-- [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks](notebooks/README.md) — 实践代码
+- [theory.md](theory.md) — principles and key papers
+- [landscape.md](landscape.md) — current state of play (with last-verified date)
+- [notebooks](notebooks/README.md) — hands-on code

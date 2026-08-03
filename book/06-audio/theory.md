@@ -1,47 +1,47 @@
-# 理论大纲 · 语音与音频
+# Theory · Speech & Audio
 
-## 1. 音频表示
+## 1. Audio representations
 
-- 波形 → 梅尔频谱（理解侧标准输入）
-- **神经 codec**：EnCodec / SoundStream / DAC —— RVQ（残差向量量化）把音频变成多层离散 token，~1.5kbps 仍保真
-- codec 是音频生成的"VAE"：整个生成侧建立在它之上
+- Waveform → mel spectrogram (standard input on the understanding side)
+- **Neural codecs**: EnCodec / SoundStream / DAC — RVQ (residual vector quantization) turns audio into multi-layer discrete tokens; ~1.5kbps still sounds faithful
+- The codec is the "VAE of audio": the entire generation stack is built on top of it
 
-## 2. ASR（语音识别）
+## 2. ASR (speech recognition)
 
-- **Whisper (2022)**：encoder-decoder + 68 万小时弱监督数据，鲁棒性来自数据而非结构
-- 流式路线：CTC / RNN-T / TDT（NVIDIA Parakeet），低延迟场景必需
-- 蒸馏与加速：Distil-Whisper、faster-whisper（CTranslate2）
-- 新趋势：ASR 被吸收进 omni 模型（Qwen3.5-Omni 支持 113 种语言识别）
+- **Whisper (2022)**: encoder-decoder + 680k hours of weak supervision; robustness comes from data, not architecture
+- Streaming families: CTC / RNN-T / TDT (NVIDIA Parakeet) — required for low-latency scenarios
+- Distillation and speedups: Distil-Whisper, faster-whisper (CTranslate2)
+- New trend: ASR being absorbed into omni models (Qwen3.5-Omni recognizes 113 languages)
 
-## 3. TTS（语音合成）：范式演进
+## 3. TTS: paradigm evolution
 
-- 老范式：声学模型 + 声码器（Tacotron + HiFi-GAN），按说话人训练
-- **现代范式：codec LM**（VALL-E 2023 开端）：
-  - 文本 token + 参考音频 token → 自回归生成 codec token → codec 解码成波形
-  - 零样本克隆 = 参考音频作为 prompt 的 in-context learning
-- 变体：flow matching 声学路线（非自回归，快）、混合式
-- 关键能力分化：流式低延迟（对话 agent）vs 表现力（情感/韵律控制，inline token 标记）
+- Old paradigm: acoustic model + vocoder (Tacotron + HiFi-GAN), per-speaker training
+- **Modern paradigm: codec LMs** (opened by VALL-E, 2023):
+  - text tokens + reference-audio tokens → autoregressively generate codec tokens → codec decodes to waveform
+  - zero-shot cloning = in-context learning with the reference audio as the prompt
+- Variants: flow-matching acoustic routes (non-autoregressive, fast), hybrids
+- The capability split: streaming low latency (conversational agents) vs. expressiveness (emotion/prosody control via inline tokens)
 
-## 4. 语音对话与全双工
+## 4. Spoken dialogue and full duplex
 
-- 级联（ASR→LLM→TTS）vs 端到端语音对话（GPT-4o 式）
-- 全双工：打断、backchannel——为什么这很难（07 章 Thinker-Talker 架构呼应）
+- Cascaded (ASR→LLM→TTS) vs. end-to-end speech dialogue (GPT-4o style)
+- Full duplex: interruptions, backchannels — why this is hard (echoed by the Thinker-Talker architecture in chapter 07)
 
-## 5. 音乐与音效
+## 5. Music and sound effects
 
-- 音乐生成：Suno/Udio（闭源）、YuE、ACE-Step（开源）
-- 音效/Foley：视频配音效（V2A），与 05 章音视频联合生成呼应
+- Music generation: Suno/Udio (closed), YuE, ACE-Step (open)
+- SFX/Foley: video-to-audio, echoing chapter 05's joint audio-video generation
 
-## 6. 评测
+## 6. Evaluation
 
-- ASR：WER/CER（LibriSpeech、Common Voice、多语言 FLEURS）
-- TTS：EmergentTTS-Eval、Audio Turing Test、说话人相似度 + 自然度 MOS
+- ASR: WER/CER (LibriSpeech, Common Voice, multilingual FLEURS)
+- TTS: EmergentTTS-Eval, Audio Turing Test, speaker similarity + naturalness MOS
 
-## 关键论文清单
+## Key papers
 
-| 论文 | 年份 | 为什么读 |
+| Paper | Year | Why read it |
 |---|---|---|
-| Whisper | 2022 | 数据驱动鲁棒 ASR |
-| EnCodec | 2022 | 音频离散化基石 |
-| VALL-E | 2023 | codec LM 范式开端 |
-| Higgs Audio v3 技术资料 | 2026 | chat-native、流式 TTS 最新实践 |
+| Whisper | 2022 | Data-driven robust ASR |
+| EnCodec | 2022 | The cornerstone of audio discretization |
+| VALL-E | 2023 | Opened the codec-LM paradigm |
+| Higgs Audio v3 technical material | 2026 | The latest chat-native, streaming TTS practice |

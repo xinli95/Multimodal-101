@@ -1,35 +1,35 @@
-# 理论大纲 · 文档理解
+# Theory · Document Understanding
 
-## 1. 从传统 OCR 到端到端 VLM
+## 1. From classical OCR to end-to-end VLMs
 
-- 传统流水线：检测 → 识别 → 版面分析 → 阅读顺序恢复（PaddleOCR 经典架构）
-- 端到端范式：一个 VLM 直接输出 Markdown/HTML/JSON（Nougat 2023 开端 → 今天的 olmOCR、DeepSeek-OCR）
-- 两者取舍：端到端省流程但可能幻觉；传统流水线可控但错误级联
+- Classical pipeline: detection → recognition → layout analysis → reading-order recovery (the classic PaddleOCR architecture)
+- End-to-end paradigm: one VLM outputs Markdown/HTML/JSON directly (Nougat 2023 opened this line → today's olmOCR, DeepSeek-OCR)
+- The trade: end-to-end saves plumbing but can hallucinate; classical pipelines are controllable but errors cascade
 
-## 2. 关键设计问题
+## 2. Key design questions
 
-- **分辨率策略**：文档是高分辨率、信息稠密的输入，tile 切块 vs NaViT 变长 patch（PaddleOCR-VL 路线）
-- **输出表示**：Markdown（阅读友好）vs HTML（表格保真）vs 带坐标的 grounded 输出（可溯源，防幻觉的关键）
-- **阅读顺序**：多栏、跨页、图表混排如何线性化
+- **Resolution strategy**: documents are high-resolution, information-dense inputs — tiling vs. NaViT variable-length patches (the PaddleOCR-VL route)
+- **Output representation**: Markdown (reader-friendly) vs. HTML (table fidelity) vs. grounded output with coordinates (traceable — the key to fighting hallucination)
+- **Reading order**: how to linearize multi-column, cross-page, figure-mixed layouts
 
-## 3. 光学上下文压缩（DeepSeek-OCR 的核心洞察）
+## 3. Optical context compression (DeepSeek-OCR's core insight)
 
-- 想法：一页 1000 词的文本渲染成图像后，只需 ~100 个视觉 token 即可近乎无损还原 → 视觉模态是文本的高效压缩通道
-- 含义：OCR 不只是应用，可能是解决 LLM 长上下文成本的通用机制（"用图像存记忆"）
-- 这是"理解 → 压缩 → 再生成"闭环的一个漂亮案例，值得精读
+- The idea: render a 1000-word page as an image and ~100 visual tokens suffice to reconstruct it nearly losslessly → vision is an efficient compression channel for text
+- The implication: OCR is not just an application — it may be a general mechanism for cheap long-context in LLMs ("store memories as images")
+- A beautiful closed loop of "understand → compress → regenerate"; worth a careful read
 
-## 4. 评测
+## 4. Evaluation
 
-- **OmniDocBench**：目前最全面的文档解析基准（版面、公式、表格、多语言）
-- olmOCR-Bench：单元测试式评测思路
-- 注意 benchmark 陷阱：Markdown 格式差异会被误判为内容错误
+- **OmniDocBench**: the most comprehensive document-parsing benchmark today (layout, formulas, tables, multilingual)
+- olmOCR-Bench: unit-test-style evaluation
+- Benchmark trap: Markdown formatting differences get mis-scored as content errors
 
-## 关键论文/项目清单
+## Key papers / projects
 
-| 论文/项目 | 年份 | 为什么读 |
+| Paper/Project | Year | Why read it |
 |---|---|---|
-| Nougat | 2023 | 端到端文档转换开山 |
-| GOT-OCR 2.0 | 2024 | "统一 OCR" 概念 |
-| DeepSeek-OCR / OCR-2 | 2025–2026 | 光学上下文压缩 |
-| olmOCR / olmOCR-2 | 2025 | 全开放（数据+权重+评测）路线 |
-| PaddleOCR-VL / -VL-1.5 | 2025–2026 | NaViT 编码器 + 轻量高效路线 |
+| Nougat | 2023 | Opened end-to-end document conversion |
+| GOT-OCR 2.0 | 2024 | The "unified OCR" concept |
+| DeepSeek-OCR / OCR-2 | 2025–2026 | Optical context compression |
+| olmOCR / olmOCR-2 | 2025 | The fully-open route (data + weights + eval) |
+| PaddleOCR-VL / -VL-1.5 | 2025–2026 | NaViT encoder + lightweight efficiency route |

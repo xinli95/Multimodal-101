@@ -1,9 +1,9 @@
 # Notebooks · 06-audio
 
-| Notebook | 内容 | 硬件 |
+| Notebook | Contents | Hardware |
 |---|---|---|
-| ✅ [`01_whisper_asr.ipynb`](01_whisper_asr.ipynb) | Whisper 转写、时间戳、WER 评测 + faster-whisper 加速对比 | 🟢 CPU 可跑 |
-| ✅ [`02_kokoro_tts.ipynb`](02_kokoro_tts.ipynb) | Kokoro 本地合成：多语言、音色/语速、TTS→ASR 回环测试 | 🟢 CPU 可跑 |
-| `03_higgs_v3_clone.ipynb` (计划中) | Higgs Audio v3：零样本声音克隆、inline 情感控制、流式输出 | 🟡 12GB+ |
-| `04_voice_pipeline.ipynb` (计划中) | 串起完整语音对话：Whisper → LLM → TTS，测端到端延迟 | 🟢/🟡 |
-| `05_codec_anatomy.ipynb` (计划中) | 解剖 EnCodec：听不同码率的重建效果，直观理解 RVQ | 🟢 |
+| ✅ [`01_whisper_asr.ipynb`](01_whisper_asr.ipynb) | Whisper transcription, timestamps, WER evaluation + faster-whisper speedup comparison | 🟢 CPU |
+| ✅ [`02_kokoro_tts.ipynb`](02_kokoro_tts.ipynb) | Kokoro local synthesis: languages, voices/speed, TTS→ASR round-trip testing | 🟢 CPU |
+| `03_higgs_v3_clone.ipynb` (planned) | Higgs Audio v3: zero-shot voice cloning, inline emotion control, streaming output | 🟡 12GB+ |
+| `04_voice_pipeline.ipynb` (planned) | Full voice chat: Whisper → LLM → TTS, measuring end-to-end latency | 🟢/🟡 |
+| `05_codec_anatomy.ipynb` (planned) | Dissect EnCodec: listen to reconstructions at different bitrates, feel RVQ intuitively | 🟢 |

@@ -1,39 +1,39 @@
-# 理论大纲 · 应用与评测
+# Theory · Applications & Evaluation
 
-## 1. 多模态 RAG
+## 1. Multimodal RAG
 
-- 两条路线：
-  - **解析路线**：文档 → OCR/解析成文本（02 章）→ 文本 RAG。可控、可溯源，工程主流
-  - **视觉检索路线**：ColPali/ColQwen 类——页面直接做视觉嵌入，跳过解析。省流程，长尾版面强
-- 多模态嵌入模型：CLIP 系 vs VLM 底座的后期交互（late interaction）
-- 何时选哪条：表格密集选解析；扫描件/图表混排选视觉检索；生产常两路混合
+- Two routes:
+  - **Parse route**: document → OCR/parse to text (ch. 02) → text RAG. Controllable and traceable — the engineering mainstream
+  - **Visual retrieval route**: ColPali/ColQwen style — embed pages visually, skip parsing. Less plumbing; strong on long-tail layouts
+- Multimodal embedding models: CLIP-family vs. late interaction on VLM backbones
+- Choosing: table-dense → parse; scans/chart-heavy → visual retrieval; production often runs both
 
-## 2. 多模态 Agent
+## 2. Multimodal agents
 
-- **GUI/Computer-use agent**：截图 → grounding（元素定位）→ 动作输出的闭环；为什么 grounding 精度是瓶颈
-- 视觉工具调用：让 LLM 调用图像生成/编辑作为工具（agentic content pipeline）
-- 具身方向一瞥：VLA（视觉-语言-动作）模型与机器人
+- **GUI / computer-use agents**: the screenshot → grounding (element localization) → action loop; why grounding precision is the bottleneck
+- Visual tool calling: LLMs invoking image generation/editing as tools (agentic content pipelines)
+- A glance at embodiment: VLA (vision-language-action) models and robotics
 
-## 3. 评测方法论
+## 3. Evaluation methodology
 
-- 三层评测金字塔：
-  1. 自动指标（快、可回归，但与人类偏好脱节风险）
-  2. **LLM/VLM-as-judge**（主流；注意 judge 偏差:位置偏好、自我偏好）
-  3. 人类 arena 盲测（金标准，慢且贵）
-- 教程立场：任何 demo 都配一个最小评测集——"感觉不错"不是结论
+- The three-layer evaluation pyramid:
+  1. Automatic metrics (fast, regression-friendly, but risk drifting from human preference)
+  2. **LLM/VLM-as-judge** (the mainstream; mind judge biases: position preference, self-preference)
+  3. Human arena blind tests (gold standard; slow and expensive)
+- This book's stance: every demo ships with a minimal eval set — "looks good to me" is not a conclusion
 
-## 4. 生产工程
+## 4. Production engineering
 
-- 视觉 token 经济学：一张图 = 几百到上千 token，分辨率策略直接决定成本
-- 延迟优化：流式、投机解码、蒸馏小模型路由
-- **模型路由**：生产共识是按任务在 2–3 个模型间路由（视频章已见）；构建路由的评测依据
-- 内容安全：水印（SynthID 类）、深伪检测、license 合规（各章 landscape 的 license 列就是为此）
+- Visual token economics: one image = hundreds to thousands of tokens; resolution strategy is the cost dial
+- Latency: streaming, speculative decoding, routing to distilled small models
+- **Model routing**: the production consensus is routing across 2–3 models by task (seen already in the video chapter); build the routing table from evals
+- Content safety: watermarking (SynthID-class), deepfake detection, license compliance (this is what the license columns in every landscape.md are for)
 
-## 关键论文/项目清单
+## Key papers / projects
 
-| 论文/项目 | 年份 | 为什么读 |
+| Paper/Project | Year | Why read it |
 |---|---|---|
-| ColPali | 2024 | 视觉检索路线开山 |
-| CogAgent / UI-TARS | 2024–2025 | GUI agent 代表 |
-| MMMU / MMMU-Pro | 2023–2024 | 理解评测设计思想 |
-| VBench 系列 | 2024–2025 | 生成评测维度化思路 |
+| ColPali | 2024 | Opened the visual retrieval route |
+| CogAgent / UI-TARS | 2024–2025 | GUI-agent representatives |
+| MMMU / MMMU-Pro | 2023–2024 | How understanding benchmarks are designed |
+| VBench series | 2024–2025 | Dimensional evaluation for generation |

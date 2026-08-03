@@ -5,7 +5,7 @@ format: jb-book
 root: intro.md
 
 parts:
-  - caption: 00 · Foundations 多模态基础
+  - caption: 00 · Foundations
     chapters:
       - file: 00-foundations/overview.md
       - file: 00-foundations/theory.md
@@ -14,7 +14,7 @@ parts:
         sections:
           - file: 00-foundations/notebooks/01_clip_zero_shot.ipynb
           - file: 00-foundations/notebooks/02_tokenize_everything.ipynb
-  - caption: 01 · VLM 视觉语言模型
+  - caption: 01 · Vision-Language Models
     chapters:
       - file: 01-vlm/overview.md
       - file: 01-vlm/theory.md
@@ -23,7 +23,7 @@ parts:
         sections:
           - file: 01-vlm/notebooks/01_qwen3vl_local.ipynb
           - file: 01-vlm/notebooks/02_api_frontier.ipynb
-  - caption: 02 · 文档理解与 OCR
+  - caption: 02 · Document Understanding & OCR
     chapters:
       - file: 02-doc-understanding/overview.md
       - file: 02-doc-understanding/theory.md
@@ -31,7 +31,7 @@ parts:
       - file: 02-doc-understanding/notebooks/README.md
         sections:
           - file: 02-doc-understanding/notebooks/01_pdf_to_markdown.ipynb
-  - caption: 03 · 图像生成
+  - caption: 03 · Image Generation
     chapters:
       - file: 03-image-generation/overview.md
       - file: 03-image-generation/theory.md
@@ -39,19 +39,19 @@ parts:
       - file: 03-image-generation/notebooks/README.md
         sections:
           - file: 03-image-generation/notebooks/01_flux2_klein_local.ipynb
-  - caption: 04 · 图像编辑
+  - caption: 04 · Image Editing
     chapters:
       - file: 04-image-editing/overview.md
       - file: 04-image-editing/theory.md
       - file: 04-image-editing/landscape.md
       - file: 04-image-editing/notebooks/README.md
-  - caption: 05 · 视频生成
+  - caption: 05 · Video Generation
     chapters:
       - file: 05-video-generation/overview.md
       - file: 05-video-generation/theory.md
       - file: 05-video-generation/landscape.md
       - file: 05-video-generation/notebooks/README.md
-  - caption: 06 · 语音与音频
+  - caption: 06 · Speech & Audio
     chapters:
       - file: 06-audio/overview.md
       - file: 06-audio/theory.md
@@ -60,13 +60,13 @@ parts:
         sections:
           - file: 06-audio/notebooks/01_whisper_asr.ipynb
           - file: 06-audio/notebooks/02_kokoro_tts.ipynb
-  - caption: 07 · 统一多模态模型
+  - caption: 07 · Unified & Omni Models
     chapters:
       - file: 07-unified-omni/overview.md
       - file: 07-unified-omni/theory.md
       - file: 07-unified-omni/landscape.md
       - file: 07-unified-omni/notebooks/README.md
-  - caption: 08 · 应用与评测
+  - caption: 08 · Applications & Evaluation
     chapters:
       - file: 08-applications/overview.md
       - file: 08-applications/theory.md

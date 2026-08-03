@@ -1,16 +1,16 @@
-# 07 · Unified & Omni — 统一多模态模型
+# 07 · Unified & Omni Models
 
-集大成的一章：一个模型同时做理解与生成、跨所有模态。这是闭源前沿（GPT-5、Gemini 3）的真实形态，也是开源最活跃的研究方向。理论讲清楚"统一"的几种架构路线，实践跑 BAGEL / InternVL-U / Qwen 3.5-Omni。
+The capstone chapter: one model doing both understanding and generation, across all modalities. This is what the closed frontier (GPT-5, Gemini 3) actually is, and the most active open research direction. Theory clarifies the architecture routes to "unification"; practice runs BAGEL / InternVL-U / Qwen3.5-Omni.
 
-## 学习目标
+## Learning goals
 
-- 理解"理解用连续特征、生成用离散/扩散"这一根本矛盾的四种解法
-- 读懂三个代表架构：Janus（解耦编码）、BAGEL（MoT + 混合 AR/diffusion）、Qwen-Omni（Thinker-Talker）
-- 理解统一训练带来的涌现能力（世界知识编辑、跨模态推理）
-- 跑通一个开源统一模型的理解+生成+编辑全流程
+- Understand the fundamental tension — understanding prefers continuous features, generation prefers discrete/diffusion — and its four resolutions
+- Read three representative architectures: Janus (decoupled encoding), BAGEL (MoT + hybrid AR/diffusion), Qwen-Omni (Thinker-Talker)
+- Understand the emergent abilities unified training brings (world-knowledge editing, cross-modal reasoning)
+- Run one open unified model through the full understand + generate + edit loop
 
-## 内容
+## Contents
 
-- [theory.md](theory.md) — 原理与关键论文
-- [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks](notebooks/README.md) — 实践代码
+- [theory.md](theory.md) — principles and key papers
+- [landscape.md](landscape.md) — current state of play (with last-verified date)
+- [notebooks](notebooks/README.md) — hands-on code

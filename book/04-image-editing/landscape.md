@@ -1,33 +1,33 @@
-# Landscape · 图像编辑
+# Landscape · Image Editing
 
-> **Last verified: 2026-08-02** — 超过 6 个月请重新核实。
+> **Last verified: 2026-08-02** — re-check if this is more than 6 months old.
 
-## 开源 / 开放权重
+## Open / open-weight
 
-| 模型 | 机构 | License | 亮点 |
+| Model | Org | License | Highlights |
 |---|---|---|---|
-| **Qwen-Image-Edit**（最新 2511+ 版本） | 阿里 | Apache 2.0 | 文字精确编辑第一；外观+语义编辑全能，开源首选 |
-| **FLUX.2 系（编辑内建）** | BFL | klein: Apache 2.0 | FLUX.2 起生成/编辑一体，多参考图；Kontext [dev] 为上一代 |
-| Step1X-Edit、SeedEdit（开源版） | 阶跃/字节 | 各异 | 备选 |
+| **Qwen-Image-Edit** (latest 2511+ builds) | Alibaba | Apache 2.0 | #1 at precise text editing; all-round appearance + semantic edits — the open default |
+| **FLUX.2 family (editing built in)** | BFL | klein: Apache 2.0 | Since FLUX.2, generation/editing are one model with multi-reference; Kontext [dev] is the previous generation |
+| Step1X-Edit, SeedEdit (open builds) | StepFun / ByteDance | varies | Alternatives |
 
-## 闭源前沿
+## Closed frontier
 
-| 模型 | 机构 | 亮点 |
+| Model | Org | Highlights |
 |---|---|---|
-| **Nano Banana Pro** | Google (Gemini image) | 指令编辑综合最强之一；角色一致性、世界知识 |
-| **GPT Image 2** | OpenAI | 精确局部编辑 + 最多 10 张参考图合成 |
-| SeedEdit / Seedream | 字节 | 国内闭源代表 |
+| **Nano Banana Pro** | Google (Gemini image) | Among the strongest all-round instructed editors; character consistency, world knowledge |
+| **GPT Image 2** | OpenAI | Precise local edits + up to 10 reference images |
+| SeedEdit / Seedream | ByteDance | The leading closed line from China |
 
-## 选型速查
+## Quick chooser
 
-| 场景 | 推荐 |
+| Scenario | Pick |
 |---|---|
-| 图中文字替换（尤其中文） | Qwen-Image-Edit |
-| 本地私有化 + 可微调 | Qwen-Image-Edit（可 LoRA 定制编辑行为） |
-| 角色一致性要求极高的商业内容 | Nano Banana Pro / GPT Image 2 |
-| 亚秒级交互式编辑 | FLUX.2 [klein] |
+| Replacing text inside images (especially Chinese) | Qwen-Image-Edit |
+| On-prem + fine-tunable | Qwen-Image-Edit (LoRA-customizable edit behavior) |
+| Maximum character consistency for commercial content | Nano Banana Pro / GPT Image 2 |
+| Sub-second interactive editing | FLUX.2 [klein] |
 
-## 趋势判断
+## Where things are heading
 
-1. "编辑"正在被吸收进"生成"：单独的编辑模型会消失，全部并入统一多模态模型。
-2. 微调开源编辑模型（如 Qwen-Image-Edit + LoRA）在垂直场景可超过闭源通用模型——教程实验点。
+1. "Editing" is being absorbed into "generation": standalone editors will disappear into unified multimodal models.
+2. Fine-tuning open editors (e.g. Qwen-Image-Edit + LoRA) can beat closed generalists in vertical domains — a tutorial experiment worth running.

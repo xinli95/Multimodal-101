@@ -1,44 +1,44 @@
-# 理论大纲 · 视频生成
+# Theory · Video Generation
 
-## 1. 从图像到视频：三个新问题
+## 1. From image to video: three new problems
 
-1. **时间一致性**：物体身份、运动物理、光照连续
-2. **算力爆炸**：token 数 = 空间 × 时间，5 秒 720p 即数十万 token → 一切设计围绕省算力
-3. **音视频同步**：口型、音效对齐（新一代模型的分水岭能力）
+1. **Temporal consistency**: object identity, motion physics, lighting continuity
+2. **Compute explosion**: tokens = space × time; 5 seconds of 720p is already hundreds of thousands of tokens → every design decision orbits compute savings
+3. **Audio-video sync**: lip sync and sound-effect alignment (the watershed capability of the current generation)
 
-## 2. 核心组件
+## 2. Core components
 
-- **3D Causal VAE**：时空联合压缩（典型 4x 时间 + 8x8 空间），causal 设计保证首帧独立编码 → I2V 的基础
-- **Video DiT**：
-  - 分解式注意力（空间层 + 时间层交替）：省算力，早期主流
-  - Full 3D attention：效果好但贵，旗舰模型标配
-  - 3D RoPE 位置编码
-- **Flow Matching** 训练目标（与图像章相同，直接迁移）
+- **3D Causal VAE**: joint spatiotemporal compression (typically 4x temporal + 8x8 spatial); the causal design lets the first frame encode independently → the foundation of I2V
+- **Video DiT**:
+  - Factorized attention (alternating spatial and temporal layers): cheaper, the early mainstream
+  - Full 3D attention: better but expensive; standard on flagships
+  - 3D RoPE position encoding
+- **Flow Matching** as the training objective (identical to the image chapter — it transfers directly)
 
-## 3. 条件与控制
+## 3. Conditioning and control
 
-- T2V vs **I2V**（首帧条件，生产主力：先用图像模型定构图，再让视频模型动起来）
-- 运动控制：相机轨迹、参考视频、pose 序列
-- 多参考输入（Seedance 2.5 支持 50 个参考）：角色/场景/风格锚定
-- 音频联合生成：LTX-2 的单次前向音视频联合 vs Veo 的级联方案
+- T2V vs. **I2V** (first-frame conditioning — the production workhorse: compose the shot with an image model first, then let the video model move it)
+- Motion control: camera trajectories, reference videos, pose sequences
+- Multi-reference input (Seedance 2.5 takes 50 references): anchoring characters/scenes/styles
+- Joint audio generation: LTX-2's single-forward-pass audio+video vs. Veo's cascaded approach
 
-## 4. 长视频与效率
+## 4. Long video and efficiency
 
-- 自回归块式生成 / streaming 生成（Self-Forcing、CausVid 路线）
-- 蒸馏：视频版少步蒸馏（FastWan 等）
-- 为什么 30 秒单镜头（Seedance 2.5）是 2026 年的里程碑
+- Autoregressive blockwise / streaming generation (the Self-Forcing, CausVid line)
+- Distillation: few-step video variants (FastWan et al.)
+- Why a 30-second single shot (Seedance 2.5) was a 2026 milestone
 
-## 5. 评测
+## 5. Evaluation
 
-- VBench / VBench-2.0（维度化自动评测）、arena 盲测
-- 物理合理性仍是共同短板（流体、碰撞、手部交互）
+- VBench / VBench-2.0 (dimensional automatic eval), arena blind tests
+- Physical plausibility remains the shared weakness (fluids, collisions, hand interactions)
 
-## 关键论文清单
+## Key papers
 
-| 论文 | 年份 | 为什么读 |
+| Paper | Year | Why read it |
 |---|---|---|
-| Sora 技术报告 | 2024 | spacetime patches 概念普及者 |
-| Wan 2.1/2.2 技术报告 | 2025 | 开源视频最完整的技术披露 |
-| HunyuanVideo / 1.5 | 2024–2025 | 另一套完整开源实现 |
-| LTX-Video / LTX-2 | 2024–2026 | 实时化 + 音视频联合生成 |
-| Self-Forcing | 2025 | 自回归长视频方向 |
+| Sora tech report | 2024 | Popularized spacetime patches |
+| Wan 2.1/2.2 tech reports | 2025 | The most complete technical disclosure in open video |
+| HunyuanVideo / 1.5 | 2024–2025 | Another full open implementation |
+| LTX-Video / LTX-2 | 2024–2026 | Real-time generation + joint audio-video |
+| Self-Forcing | 2025 | The autoregressive long-video direction |

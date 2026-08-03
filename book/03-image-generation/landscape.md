@@ -1,30 +1,30 @@
-# Landscape · 图像生成
+# Landscape · Image Generation
 
-> **Last verified: 2026-08-02** — 超过 6 个月请重新核实。
+> **Last verified: 2026-08-02** — re-check if this is more than 6 months old.
 
-## 开源 / 开放权重
+## Open / open-weight
 
-| 模型 | 机构 | 规模 | License | 亮点 |
+| Model | Org | Size | License | Highlights |
 |---|---|---|---|---|
-| **FLUX.2 [dev]** | Black Forest Labs | 32B | 非商用（商用需授权） | 开放权重最强画质档 |
-| **FLUX.2 [klein]** | Black Forest Labs | 4B/9B | Apache 2.0 | 2026-01 发布；消费级 GPU（~13GB VRAM）0.5 秒内出图，**教学首选** |
-| **Qwen-Image-2512** | 阿里 | 20B | Apache 2.0 | 盲测最强开源；中英文字渲染突出 |
-| SD 3.5 | Stability AI | 2.5B–8B | 社区 license | 生态最广的基线 |
-| HiDream-I1 | HiDream | 17B | MIT | 备选 |
+| **FLUX.2 [dev]** | Black Forest Labs | 32B | Non-commercial (license required for commercial) | Highest-quality open-weight tier |
+| **FLUX.2 [klein]** | Black Forest Labs | 4B/9B | Apache 2.0 | Released 2026-01; sub-0.5s generation on consumer GPUs (~13GB VRAM) — **the teaching pick** |
+| **Qwen-Image-2512** | Alibaba | 20B | Apache 2.0 | Strongest open model in blind tests; standout Chinese/English text rendering |
+| SD 3.5 | Stability AI | 2.5B–8B | Community license | The widest ecosystem baseline |
+| HiDream-I1 | HiDream | 17B | MIT | Alternative |
 
-## 闭源前沿
+## Closed frontier
 
-| 模型 | 机构 | 亮点 |
+| Model | Org | Highlights |
 |---|---|---|
-| **GPT Image 2** | OpenAI | arena 第一；密集文字渲染、精确指令编辑、10 张参考图合成 |
-| Nano Banana Pro (Gemini image) | Google | 指令编辑与世界知识结合 |
-| Midjourney V8 | Midjourney | 美学天花板 |
-| MAI-Image-2.5 | 微软 | arena 前列 |
+| **GPT Image 2** | OpenAI | Arena #1; dense text rendering, precise instructed edits, 10-reference composition |
+| Nano Banana Pro (Gemini image) | Google | Instructed editing fused with world knowledge |
+| Midjourney V8 | Midjourney | The aesthetics ceiling |
+| MAI-Image-2.5 | Microsoft | Top of the arena tier |
 
-⚠️ 已退役：Imagen 4 API 2026-08-17 关停；DALL-E 3 已被 GPT Image 系替代。
+⚠️ Retired: Imagen 4 API shuts down 2026-08-17; DALL-E 3 has been replaced by the GPT Image line.
 
-## 趋势判断
+## Where things are heading
 
-1. 开源与闭源差距已缩小到"leaderboard 位次"而非"能用不能用"；开源赢在可控、私有化、成本。
-2. 文本编码器 LLM 化（世界知识注入）是当前一代的共同选择。
-3. 生成与编辑边界消失——新模型默认同时支持 T2I 和 I2I（详见 04 章）。
+1. The open-closed gap has narrowed to "leaderboard position" rather than "usable or not"; open wins on control, on-prem, and cost.
+2. LLM-ification of the text encoder (world-knowledge injection) is this generation's shared choice.
+3. The generation/editing boundary is dissolving — new models ship T2I and I2I together (see chapter 04).

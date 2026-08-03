@@ -1,16 +1,16 @@
-# 06 · Audio — 语音与音频
+# 06 · Audio — Speech & Sound
 
-理解侧讲 ASR（Whisper 架构为主线），生成侧讲 TTS 的 codec token LM 范式——这也是理解 07 章 Omni 模型"如何说话"的前置知识。实践覆盖 Whisper、Kokoro、Higgs Audio v3。
+On the understanding side, ASR with the Whisper architecture as the through-line; on the generation side, the codec-token LM paradigm for TTS — which is also the prerequisite for understanding how the omni models of chapter 07 "speak". Practice covers Whisper, Kokoro, and Higgs Audio v3.
 
-## 学习目标
+## Learning goals
 
-- 理解 ASR 两大路线：encoder-decoder（Whisper）vs CTC/transducer（流式）
-- 理解神经音频 codec（EnCodec 系）：音频如何变成离散 token
-- 理解现代 TTS = "codec token 上的语言模型"，以及零样本声音克隆的原理
-- 跑通本地 STT + TTS 闭环，构建一个语音对话 pipeline
+- Understand the two ASR families: encoder-decoder (Whisper) vs. CTC/transducer (streaming)
+- Understand neural audio codecs (the EnCodec family): how audio becomes discrete tokens
+- Understand that modern TTS = "a language model over codec tokens", and how zero-shot voice cloning works
+- Build a local STT + TTS loop into a working voice-chat pipeline
 
-## 内容
+## Contents
 
-- [theory.md](theory.md) — 原理与关键论文
-- [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
-- [notebooks](notebooks/README.md) — 实践代码
+- [theory.md](theory.md) — principles and key papers
+- [landscape.md](landscape.md) — current state of play (with last-verified date)
+- [notebooks](notebooks/README.md) — hands-on code
