@@ -114,3 +114,26 @@ feature_extraction_gemma4.py ch05    waveform → mel features
 modeling_gemma4.py           ch04-09 everything else, ~126KB
 modular_gemma4.py            ch01    the source modeling_gemma4.py is generated from
 ```
+
+## How to read Part I
+
+Each chapter has the same four parts:
+
+- **Front matter** — where you are in the pipeline, what you will learn, and a source map naming every file and symbol the chapter opens.
+- **Walkthrough** — the actual reading. Code is quoted from `transformers 5.14.1`; where a design choice is not obvious, the chapter argues for it rather than asserting it.
+- **Design space** — how other models answered the same question, and what each answer optimises. This is the section that keeps one model from becoming a blind spot.
+- **Check yourself** — questions with answers findable in the chapter or the source. If you can answer them you have read it; if not, you have skimmed it.
+
+Two habits will make the difference:
+
+1. **Keep the source open.** Every code block in Part I is quoted from a file on your disk. Reading the surrounding lines is where most of the learning actually happens — the book points, it does not substitute.
+2. **Run the structural notebooks.** The ones tagged 🟢 need no GPU and no downloads. They exist because "I understood the explanation" and "I can reproduce the computation" are different states, and only the second one survives contact with your own project.
+
+Chapters 03, 04 and 08 are load-bearing — the token budget, the vision tower and the fusion point are what "multimodal" actually means here. Chapters 06 and 07 are the ones that will change how you read *any* modern LLM, not just this one.
+
+## Check yourself
+
+1. Which Gemma 4 sizes can hear? Where in the released files is that fact represented?
+2. An image, a video and an audio clip enter the model. At which point do the three stop being different kinds of thing?
+3. Name the two files you would open to answer "what is new in Gemma 4 relative to Gemma 3", and say which one to read first.
+4. Why does this book use a randomly-initialised miniature model for some notebooks and real E2B weights for others?
