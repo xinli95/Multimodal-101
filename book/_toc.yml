@@ -1,74 +1,66 @@
 # Table of contents for Multimodal-101.
 # Configuration explained here: https://jupyterbook.org/en/stable/structure/toc.html
+#
+# Part I  — the spine: one model (Gemma 4), taken apart layer by layer.
+# Part II — the other half: models that produce pixels and sound.
 
 format: jb-book
 root: intro.md
 
 parts:
-  - caption: 00 · Foundations
+  - caption: Part I · Anatomy of a Multimodal Model
     chapters:
-      - file: 00-foundations/overview.md
-      - file: 00-foundations/theory.md
-      - file: 00-foundations/landscape.md
-      - file: 00-foundations/notebooks/README.md
+      - file: 00-orientation/index.md
         sections:
-          - file: 00-foundations/notebooks/01_clip_zero_shot.ipynb
-          - file: 00-foundations/notebooks/02_tokenize_everything.ipynb
-  - caption: 01 · Vision-Language Models
-    chapters:
-      - file: 01-vlm/overview.md
-      - file: 01-vlm/theory.md
-      - file: 01-vlm/landscape.md
-      - file: 01-vlm/notebooks/README.md
+          - file: 00-orientation/notebooks/02_clip_zero_shot.ipynb
+      - file: 01-config/index.md
+      - file: 02-text-io/index.md
         sections:
-          - file: 01-vlm/notebooks/01_qwen3vl_local.ipynb
-          - file: 01-vlm/notebooks/02_api_frontier.ipynb
-  - caption: 02 · Document Understanding & OCR
-    chapters:
-      - file: 02-doc-understanding/overview.md
-      - file: 02-doc-understanding/theory.md
-      - file: 02-doc-understanding/landscape.md
-      - file: 02-doc-understanding/notebooks/README.md
+          - file: 02-text-io/notebooks/02_tokenize_everything.ipynb
+      - file: 03-image-processor/index.md
+      - file: 04-vision-tower/index.md
         sections:
-          - file: 02-doc-understanding/notebooks/01_pdf_to_markdown.ipynb
-  - caption: 03 · Image Generation
-    chapters:
-      - file: 03-image-generation/overview.md
-      - file: 03-image-generation/theory.md
-      - file: 03-image-generation/landscape.md
-      - file: 03-image-generation/notebooks/README.md
+          - file: 04-vision-tower/notebooks/03_compare_qwen3vl.ipynb
+      - file: 05-audio-and-video/index.md
         sections:
-          - file: 03-image-generation/notebooks/01_flux2_klein_local.ipynb
-  - caption: 04 · Image Editing
+          - file: 05-audio-and-video/notebooks/03_whisper_asr_compare.ipynb
+      - file: 06-text-decoder/index.md
+      - file: 07-ple-and-moe/index.md
+      - file: 08-fusion-and-masks/index.md
+      - file: 09-generation-and-serving/index.md
+      - file: 10-finetuning/index.md
+      - file: landscape.md
+  - caption: Part II · The Generation Side
     chapters:
-      - file: 04-image-editing/overview.md
-      - file: 04-image-editing/theory.md
-      - file: 04-image-editing/landscape.md
-      - file: 04-image-editing/notebooks/README.md
-  - caption: 05 · Video Generation
-    chapters:
-      - file: 05-video-generation/overview.md
-      - file: 05-video-generation/theory.md
-      - file: 05-video-generation/landscape.md
-      - file: 05-video-generation/notebooks/README.md
-  - caption: 06 · Speech & Audio
-    chapters:
-      - file: 06-audio/overview.md
-      - file: 06-audio/theory.md
-      - file: 06-audio/landscape.md
-      - file: 06-audio/notebooks/README.md
+      - file: 20-image-generation/overview.md
         sections:
-          - file: 06-audio/notebooks/01_whisper_asr.ipynb
-          - file: 06-audio/notebooks/02_kokoro_tts.ipynb
-  - caption: 07 · Unified & Omni Models
-    chapters:
-      - file: 07-unified-omni/overview.md
-      - file: 07-unified-omni/theory.md
-      - file: 07-unified-omni/landscape.md
-      - file: 07-unified-omni/notebooks/README.md
-  - caption: 08 · Applications & Evaluation
-    chapters:
-      - file: 08-applications/overview.md
-      - file: 08-applications/theory.md
-      - file: 08-applications/landscape.md
-      - file: 08-applications/notebooks/README.md
+          - file: 20-image-generation/theory.md
+          - file: 20-image-generation/landscape.md
+          - file: 20-image-generation/notebooks/README.md
+            sections:
+              - file: 20-image-generation/notebooks/01_flux2_klein_local.ipynb
+      - file: 21-video-generation/overview.md
+        sections:
+          - file: 21-video-generation/theory.md
+          - file: 21-video-generation/landscape.md
+          - file: 21-video-generation/notebooks/README.md
+      - file: 22-audio-generation/overview.md
+        sections:
+          - file: 22-audio-generation/theory.md
+          - file: 22-audio-generation/landscape.md
+          - file: 22-audio-generation/notebooks/README.md
+            sections:
+              - file: 22-audio-generation/notebooks/01_kokoro_tts.ipynb
+      - file: 23-unified-omni/overview.md
+        sections:
+          - file: 23-unified-omni/theory.md
+          - file: 23-unified-omni/landscape.md
+          - file: 23-unified-omni/notebooks/README.md
+      - file: 24-applications/overview.md
+        sections:
+          - file: 24-applications/theory.md
+          - file: 24-applications/landscape.md
+          - file: 24-applications/notebooks/README.md
+            sections:
+              - file: 24-applications/notebooks/01_pdf_to_markdown.ipynb
+              - file: 24-applications/notebooks/02_api_frontier.ipynb

@@ -1,61 +1,51 @@
 # Table of contents for Multimodal-101.
 # Configuration explained here: https://jupyterbook.org/en/stable/structure/toc.html
+#
+# Part I  — 主线：一个模型（Gemma 4），逐层拆开。
+# Part II — 另一半：产出像素与声音的模型。
 
 format: jb-book
 root: intro.md
 
 parts:
-  - caption: 00 · Foundations 多模态基础
+  - caption: Part I · 一个多模态模型的解剖
     chapters:
-      - file: 00-foundations/overview.md
-      - file: 00-foundations/theory.md
-      - file: 00-foundations/landscape.md
-      - file: 00-foundations/notebooks/README.md
-  - caption: 01 · VLM 视觉语言模型
+      - file: 00-orientation/index.md
+      - file: 01-config/index.md
+      - file: 02-text-io/index.md
+      - file: 03-image-processor/index.md
+      - file: 04-vision-tower/index.md
+      - file: 05-audio-and-video/index.md
+      - file: 06-text-decoder/index.md
+      - file: 07-ple-and-moe/index.md
+      - file: 08-fusion-and-masks/index.md
+      - file: 09-generation-and-serving/index.md
+      - file: 10-finetuning/index.md
+      - file: landscape.md
+  - caption: Part II · 生成侧
     chapters:
-      - file: 01-vlm/overview.md
-      - file: 01-vlm/theory.md
-      - file: 01-vlm/landscape.md
-      - file: 01-vlm/notebooks/README.md
-  - caption: 02 · 文档理解与 OCR
-    chapters:
-      - file: 02-doc-understanding/overview.md
-      - file: 02-doc-understanding/theory.md
-      - file: 02-doc-understanding/landscape.md
-      - file: 02-doc-understanding/notebooks/README.md
-  - caption: 03 · 图像生成
-    chapters:
-      - file: 03-image-generation/overview.md
-      - file: 03-image-generation/theory.md
-      - file: 03-image-generation/landscape.md
-      - file: 03-image-generation/notebooks/README.md
-  - caption: 04 · 图像编辑
-    chapters:
-      - file: 04-image-editing/overview.md
-      - file: 04-image-editing/theory.md
-      - file: 04-image-editing/landscape.md
-      - file: 04-image-editing/notebooks/README.md
-  - caption: 05 · 视频生成
-    chapters:
-      - file: 05-video-generation/overview.md
-      - file: 05-video-generation/theory.md
-      - file: 05-video-generation/landscape.md
-      - file: 05-video-generation/notebooks/README.md
-  - caption: 06 · 语音与音频
-    chapters:
-      - file: 06-audio/overview.md
-      - file: 06-audio/theory.md
-      - file: 06-audio/landscape.md
-      - file: 06-audio/notebooks/README.md
-  - caption: 07 · 统一多模态模型
-    chapters:
-      - file: 07-unified-omni/overview.md
-      - file: 07-unified-omni/theory.md
-      - file: 07-unified-omni/landscape.md
-      - file: 07-unified-omni/notebooks/README.md
-  - caption: 08 · 应用与评测
-    chapters:
-      - file: 08-applications/overview.md
-      - file: 08-applications/theory.md
-      - file: 08-applications/landscape.md
-      - file: 08-applications/notebooks/README.md
+      - file: 20-image-generation/overview.md
+        sections:
+          - file: 20-image-generation/theory.md
+          - file: 20-image-generation/landscape.md
+          - file: 20-image-generation/notebooks/README.md
+      - file: 21-video-generation/overview.md
+        sections:
+          - file: 21-video-generation/theory.md
+          - file: 21-video-generation/landscape.md
+          - file: 21-video-generation/notebooks/README.md
+      - file: 22-audio-generation/overview.md
+        sections:
+          - file: 22-audio-generation/theory.md
+          - file: 22-audio-generation/landscape.md
+          - file: 22-audio-generation/notebooks/README.md
+      - file: 23-unified-omni/overview.md
+        sections:
+          - file: 23-unified-omni/theory.md
+          - file: 23-unified-omni/landscape.md
+          - file: 23-unified-omni/notebooks/README.md
+      - file: 24-applications/overview.md
+        sections:
+          - file: 24-applications/theory.md
+          - file: 24-applications/landscape.md
+          - file: 24-applications/notebooks/README.md
