@@ -6,6 +6,8 @@ This is the chapter the whole first half has been building toward, and it is sma
 
 The mask is the interesting part. A sentence is causal — token *n* may not see token *n+1*. But an image is not a sequence; there is no reason the top-left patch should be forbidden from seeing the bottom-right one. So Gemma 4 supports `use_bidirectional_attention="vision"`: **vision tokens attend bidirectionally within their block, while text stays causal.** The resulting 4D mask has a very particular shape, and looking at it as a heatmap is worth more than any amount of description.
 
+Note that this is **not on in every size**. The 31B and 26B-A4B checkpoints set `"vision"`; **E2B and E4B leave it unset**, so their image tokens are as causal as their text. You therefore get two different masks out of the same code path depending on which checkpoint you loaded — which makes this the easiest chapter in Part I to run as a controlled experiment.
+
 ## What you will learn
 
 1. How `get_placeholder_mask` finds image/video/audio positions from either `input_ids` or `inputs_embeds`, and why the `inputs_embeds` path has to compare against an embedded token
