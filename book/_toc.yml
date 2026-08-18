@@ -14,10 +14,14 @@ parts:
         sections:
           - file: 00-orientation/notebooks/02_clip_zero_shot.ipynb
       - file: 01-config/index.md
+        sections:
+          - file: 01-config/notebooks/01_config_to_model.ipynb
       - file: 02-text-io/index.md
         sections:
           - file: 02-text-io/notebooks/02_tokenize_everything.ipynb
       - file: 03-image-processor/index.md
+        sections:
+          - file: 03-image-processor/notebooks/01_pixels_to_patches.ipynb
       - file: 04-vision-tower/index.md
         sections:
           - file: 04-vision-tower/notebooks/03_compare_qwen3vl.ipynb
