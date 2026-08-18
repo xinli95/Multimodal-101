@@ -12,6 +12,7 @@ parts:
     chapters:
       - file: 00-orientation/index.md
         sections:
+          - file: 00-orientation/notebooks/01_hello_gemma4.ipynb
           - file: 00-orientation/notebooks/02_clip_zero_shot.ipynb
       - file: 01-config/index.md
         sections:
@@ -25,6 +26,7 @@ parts:
           - file: 03-image-processor/notebooks/01_pixels_to_patches.ipynb
       - file: 04-vision-tower/index.md
         sections:
+          - file: 04-vision-tower/notebooks/02_image_understanding.ipynb
           - file: 04-vision-tower/notebooks/03_compare_qwen3vl.ipynb
       - file: 05-audio-and-video/index.md
         sections:
