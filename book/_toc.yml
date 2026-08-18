@@ -50,6 +50,11 @@ parts:
       - file: 10-finetuning/index.md
         sections:
           - file: 10-finetuning/notebooks/01_lora_sft.ipynb
+      - file: 11-glm-ocr/index.md
+        sections:
+          - file: 11-glm-ocr/notebooks/01_glm_ocr_anatomy.ipynb
+          - file: 11-glm-ocr/notebooks/02_tasks_and_mtp.ipynb
+          - file: 11-glm-ocr/notebooks/03_base_vs_pipeline.ipynb
       - file: landscape.md
   - caption: Part II · The Generation Side
     chapters:

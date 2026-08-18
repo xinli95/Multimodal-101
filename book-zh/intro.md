@@ -6,7 +6,7 @@
 
 ## 本书结构
 
-**Part I · 一个多模态模型的解剖** 拿 [Gemma 4](https://huggingface.co/docs/transformers/en/model_doc/gemma4) 开刀，跟着一条 prompt 走完全程：config → chat template 与 tokenizer → 图像与音频前端 → 视觉塔与音频塔 → 四个模态汇成一条序列的融合点 → 解码器 → `generate()` → 微调。每一章都打开 `transformers/models/gemma4/` 里的真实实现，点名具体的类与函数，追踪张量，然后亲手复现其中一块，并断言结果与库一致。
+**Part I · 一个多模态模型的解剖** 拿 [Gemma 4](https://huggingface.co/docs/transformers/en/model_doc/gemma4) 开刀，跟着一条 prompt 走完全程：config → chat template 与 tokenizer → 图像与音频前端 → 视觉塔与音频塔 → 四个模态汇成一条序列的融合点 → 解码器 → `generate()` → 微调。每一章都打开 `transformers/models/gemma4/` 里的真实实现，点名具体的类与函数，追踪张量，然后亲手复现其中一块，并断言结果与库一致。第 11 章再把整套方法迁移到 GLM-OCR，检验读者能否独立拆解专用多模态模型与完整文档系统。
 
 Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎装下了所有值得讲的东西：文本、图像、视频、音频输入；固定 token 预算下的可变长宽比；2D RoPE；Per-Layer Embeddings；滑窗与全局混合注意力；跨层 KV 共享；MoE；128K–256K 上下文。而 E2B 尺寸小到单张消费级显卡就能跑。
 
@@ -34,6 +34,7 @@ Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎
 | [08 · Fusion and Masks](08-fusion-and-masks/index.md) | 模态真正相遇的地方；双向视觉注意力 | `modeling_gemma4.py` |
 | [09 · Generation and Serving](09-generation-and-serving/index.md) | `generate()`、cache、批量、vLLM | `modeling_gemma4.py` |
 | [10 · Fine-Tuning](10-finetuning/index.md) | 冻什么、LoRA、多模态 collator、显存账 | `peft`、`Trainer` |
+| [11 · GLM-OCR](11-glm-ocr/index.md) | 用专用 OCR 做迁移式 capstone：base model、MTP serving、版面 pipeline | `models/glm_ocr/`、GLM-OCR SDK |
 | [Landscape](landscape.md) | Gemma 4 在"会读"的模型里处于什么位置 | — |
 
 ## Part II 章节
@@ -48,9 +49,10 @@ Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎
 
 ## 学习路径建议
 
-- **完整路径**：Part I 00 → 10 顺序读——它是一条完整的论证，跳着读会断——之后按兴趣挑 Part II。
+- **完整路径**：Part I 00 → 10 顺序读，再用 11 做迁移式 capstone——之后按兴趣挑 Part II。
 - **只关心 VLM 怎么工作**：Part I 00 → 04，再加 08。承重的是 03、04、08 三章。
 - **只关心推理成本**：Part I 03（token 预算）→ 06（注意力与 KV cache）→ 09（生成与部署）。
+- **只关心 OCR 与文档**：Part I 03 → 04 → 08 → 09，再读 11 与第 24 章的文档 pipeline/RAG notebook。
 - **只关心生成**：Part I 00，然后 Part II 20 → 23。
 
 ## 硬件分级

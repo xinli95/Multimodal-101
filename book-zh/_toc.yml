@@ -21,6 +21,7 @@ parts:
       - file: 08-fusion-and-masks/index.md
       - file: 09-generation-and-serving/index.md
       - file: 10-finetuning/index.md
+      - file: 11-glm-ocr/index.md
       - file: landscape.md
   - caption: Part II · 生成侧
     chapters:

@@ -6,7 +6,7 @@ Target readers: engineers and researchers with a basic Python / deep-learning ba
 
 ## How this book is organised
 
-**Part I · Anatomy of a Multimodal Model** takes [Gemma 4](https://huggingface.co/docs/transformers/en/model_doc/gemma4) and follows one prompt all the way through it: config → chat template and tokenizer → image and audio front ends → vision and audio towers → the fusion point where four modalities become one sequence → the decoder → `generate()` → fine-tuning. Every chapter opens the real implementation in `transformers/models/gemma4/`, names the classes and functions, traces the tensors, and then rebuilds a piece of it by hand and asserts the result matches the library.
+**Part I · Anatomy of a Multimodal Model** takes [Gemma 4](https://huggingface.co/docs/transformers/en/model_doc/gemma4) and follows one prompt all the way through it: config → chat template and tokenizer → image and audio front ends → vision and audio towers → the fusion point where four modalities become one sequence → the decoder → `generate()` → fine-tuning. Every chapter opens the real implementation in `transformers/models/gemma4/`, names the classes and functions, traces the tensors, and then rebuilds a piece of it by hand and asserts the result matches the library. Chapter 11 is the transfer test: apply that complete method to the compact GLM-OCR specialist and then widen the boundary from checkpoint to document system.
 
 Gemma 4 earns this role because one open checkpoint family contains almost everything worth teaching: text, image, video and audio input; variable aspect ratios under a fixed token budget; 2D RoPE; Per-Layer Embeddings; sliding-window and global attention mixed together; cross-layer KV sharing; MoE; 128K–256K context. And it is small enough at E2B to run on one consumer GPU.
 
@@ -14,7 +14,7 @@ Gemma 4 earns this role because one open checkpoint family contains almost every
 
 ## Design principles
 
-1. **A spine, not a list.** Part I is one continuous path through one model. You always know where you are, because there is a single diagram and every chapter marks its position on it.
+1. **A spine, not a list.** Chapters 00–10 are one continuous path through one model. Chapter 11 checks that the method transfers instead of leaving you dependent on Gemma-specific names.
 2. **Read the source.** Architecture claims in this book are checkable: they point at a file and a symbol in your own `transformers` install. Where a mechanism matters, a notebook reimplements it and `assert_close`s against the library.
 3. **One model, with a map.** Every Part I chapter ends with a **Design space** section placing Gemma 4's choice against the alternatives (LLaVA, BLIP-2, Flamingo, Qwen-VL, InternVL, Whisper). The single model is the spine; those sections are the map.
 4. **Fighting staleness.** This field reshuffles roughly every quarter. [`landscape.md`](landscape.md) and Part II's landscape pages record the state of play with an explicit **last-verified date**. If that date is more than 6 months old, re-check against official sources.
@@ -34,6 +34,7 @@ Gemma 4 earns this role because one open checkpoint family contains almost every
 | [08 · Fusion and Masks](08-fusion-and-masks/index.md) | Where the modalities actually meet; bidirectional vision attention | `modeling_gemma4.py` |
 | [09 · Generation and Serving](09-generation-and-serving/index.md) | `generate()`, cache implementations, batching, vLLM | `modeling_gemma4.py` |
 | [10 · Fine-Tuning](10-finetuning/index.md) | What to freeze, LoRA, multimodal collators, memory arithmetic | `peft`, `Trainer` |
+| [11 · GLM-OCR](11-glm-ocr/index.md) | Specialist OCR as a transfer test: base model, MTP serving, layout pipeline, contract-aware eval | `models/glm_ocr/`, GLM-OCR SDK |
 | [Landscape](landscape.md) | Where Gemma 4 sits among everything else that reads | — |
 
 ## Part II chapters
@@ -48,14 +49,15 @@ Gemma 4 earns this role because one open checkpoint family contains almost every
 
 ## Suggested paths
 
-- **Full path**: Part I 00 → 10 in order — it is a single argument and skipping breaks it — then Part II as interest dictates.
+- **Full path**: Part I 00 → 10 in order, then 11 as the transfer capstone — then Part II as interest dictates.
 - **I only care how VLMs work**: Part I 00 → 04, then 08. Chapters 03, 04 and 08 are the load-bearing ones.
 - **I only care about inference cost**: Part I 03 (token budget) → 06 (attention and KV cache) → 09 (generation and serving).
+- **I only care about OCR and documents**: Part I 03 → 04 → 08 → 09, then 11 and chapter 24's document pipeline/RAG notebooks.
 - **I only care about generation**: Part I 00, then Part II 20 → 23.
 
 ## Hardware tiers
 
-Every notebook is tagged with a minimum hardware tier. Part I is deliberately built so that the *structural* notebooks need no GPU and no downloads at all — they use randomly-initialised miniature configs — while the *behavioural* ones use `google/gemma-4-E2B-it` (~10GB, not gated).
+Every notebook is tagged with a minimum hardware tier. Part I is deliberately built so that the *structural* notebooks need no GPU and no weight downloads — they use randomly-initialised miniature configs — while the *behavioural* ones use `google/gemma-4-E2B-it` (~10GB, not gated) or the compact `zai-org/GLM-OCR` checkpoint (~2.66GB BF16).
 
 | Tier | Setup | What runs (examples) |
 |---|---|---|
