@@ -1,15 +1,8 @@
-# Landscape · 语音与音频
+# Landscape · 音频生成
 
 > **Last verified: 2026-08-02** — 超过 6 个月请重新核实。
 
-## ASR（开源）
-
-| 模型 | 机构 | License | 适用 |
-|---|---|---|---|
-| Whisper Large V3 / Turbo | OpenAI | MIT | 多语言默认选择 |
-| Parakeet TDT | NVIDIA | CC-BY-4.0 | 低延迟流式 |
-| Distil-Whisper | HF | MIT | 速度优先 |
-| Moonshine | Useful Sensors | MIT | 端侧最小 |
+> ASR 模型在[理解侧 landscape](../landscape.md) 里与 Gemma 4 音频塔一同列出；本页是生成侧。
 
 ## TTS（开源 / 开放权重）
 

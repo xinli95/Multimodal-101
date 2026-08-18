@@ -60,7 +60,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 - [x] **Batch 2 · Part I 走读正文**（`84bb26b`、`b71f880`）：11 章共 ~2300 行（旧版整本 848 行）。
 - [x] **Batch 3 · notebooks**（`35855cb` `e153627` `f22c036` `bb6f700` `eead7e2` `53f924e`）：Part I 全部 **13 个 notebook** 写完并**实际执行**，输出已存进 `.ipynb`。CPU/随机权重批 8 个（01 config、02 tokens、03 pixels、04 anatomy、05 audio、06 decoder、07 PLE、07 MoE、08 masks），E2B 真权重批 5 个（00 hello、04 image、05 asr+video、09 cache、10 LoRA）。
 - [x] **Batch 4 · Part II 改写**（`e789806`）：五章开头都改写成「与 Part I 的关系」，并清掉重构造成的重复 —— ASR 已移入 Part I 05 章，22 章的 ASR 理论小节与模型表原本在讲第二遍，现在详表并入理解侧 landscape，22 章只留指针加一条真正属于它的观点（为理解优化的编码器与为重建优化的 codec，对同一输入目标相反）。
-- [x] **Batch 5 · 中文版正文**：`book-zh/` Part I 全 11 章走读、设计空间、自测题译毕，2256 行对英文版 2333 行，基本等量。Part II 正文中文版仍待补。
+- [x] **Batch 5 · 中文版**：`book-zh/` Part I 全 11 章走读、设计空间、自测题译毕（2256 行对英文版 2333 行）；Part II 五章的导读也已重写并接上主线，ASR 去重同步到中文版。两版内容现已对齐，仅 notebook 为共用的英文版。
 
 ## 读源码挖到的、与「看 config 想当然」相反的事实
 
@@ -79,8 +79,9 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 
 ## 待办
 
-- Part II 正文（theory / landscape）的中文翻译。
 - Part II 的 notebook 多数仍是「计划中」占位（视频、统一模型、应用各章），可按需补。
+- Part II 的 theory/landscape 内容本身仍是重构前写的，只更新了导读与交叉引用；若要按 Part I 的深度重写，那是另一轮工作。
+- `landscape.md` 与各章格局页的 last-verified 日期是 2026-08-02，超过半年需重新核实。
 
 ## 实测数字（Part I notebook 的产出）
 

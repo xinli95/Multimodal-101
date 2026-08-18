@@ -1,4 +1,4 @@
-# 理论大纲 · 语音与音频
+# 理论大纲 · 音频生成
 
 ## 1. 音频表示
 
@@ -6,12 +6,11 @@
 - **神经 codec**：EnCodec / SoundStream / DAC —— RVQ（残差向量量化）把音频变成多层离散 token，~1.5kbps 仍保真
 - codec 是音频生成的"VAE"：整个生成侧建立在它之上
 
-## 2. ASR（语音识别）
+## 2. 理解侧，一段话讲完
 
-- **Whisper (2022)**：encoder-decoder + 68 万小时弱监督数据，鲁棒性来自数据而非结构
-- 流式路线：CTC / RNN-T / TDT（NVIDIA Parakeet），低延迟场景必需
-- 蒸馏与加速：Distil-Whisper、faster-whisper（CTranslate2）
-- 新趋势：ASR 被吸收进 omni 模型（Qwen3.5-Omni 支持 113 种语言识别）
+语音**识别**在 [05 章](../05-audio-and-video/index.md)，那里 Gemma 4 自己的分块注意力音频编码器是主角、Whisper 是设计空间对照组；模型清单在[理解侧 landscape](../landscape.md)。其中有两个事实与本章相关。Whisper 的鲁棒性来自 68 万小时弱监督数据而非架构 —— 是数据，不是设计。以及 ASR 正在被通用模型吸收：Gemma 4 E2B 原生能听，Qwen3.5-Omni 支持 113 种语言识别，所以"跑一个 ASR 模型"越来越是个延迟决策而非能力决策。
+
+**不能**迁移的是表示。为理解而建的编码器会扔掉一切与辨认词语无关的东西；为生成而建的 codec 必须保留足够重建波形的信息。同一份输入，相反的目标 —— 这正是 §1 的 codec 与 05 章的 mel 前端长得毫无关系的原因。
 
 ## 3. TTS（语音合成）：范式演进
 

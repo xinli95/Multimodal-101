@@ -65,11 +65,15 @@ Gemma 4 的视觉塔是自家训练的，而不是外挂一个已发布的 SigLI
 
 ## 语音理解
 
-| 模型 | 机构 | 说明 |
-|---|---|---|
-| Whisper (large-v3 / turbo) | OpenAI | 一切都拿它作基线的 encoder-decoder ASR |
-| Gemma 4 E2B/E4B 音频塔 | Google | 通用多模态模型内部的分块注意力编码器——[05 章](05-audio-and-video/index.md) |
-| Parakeet / Canary | NVIDIA | CTC/transducer 流式一系 |
+| 模型 | 机构 | License | 适用 |
+|---|---|---|---|
+| **Gemma 4 E2B/E4B 音频塔** | Google | Gemma 条款 | 通用多模态模型内部的分块注意力编码器 —— 转写*与*推理走同一条代码路径（[05 章](05-audio-and-video/index.md)） |
+| Whisper Large V3 / Turbo | OpenAI | MIT | 多语种默认选择，也是一切被拿来对比的基线 |
+| Parakeet TDT | NVIDIA | CC-BY-4.0 | 低延迟流式（CTC/transducer 一系） |
+| Distil-Whisper | HF | MIT | 速度优先 |
+| Moonshine | Useful Sensors | MIT | 端侧体积最小 |
+
+这里的取舍不是准确率，而是**输出是给谁用的**。Whisper 的编码器喂给一个只会吐转写的解码器；Gemma 4 的喂给一个通用语言模型，于是"转写这段"和"说话人的语气和他正在讲的幻灯片一致吗"是同一次调用。<a href="../05-audio-and-video/notebooks/03_whisper_asr_compare.html">05 章的 notebook</a> 把两者跑在同一段音频上（notebook 为英文版共用）。
 
 ## 趋势判断
 
