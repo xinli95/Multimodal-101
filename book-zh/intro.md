@@ -67,7 +67,7 @@ Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎
 
 教程代码为 MIT。模型 license 差异很大（Apache 2.0 / Gemma 条款 / 非商用 / 分级商用）——Gemma 4 采用 Gemma 条款，Part II 的模型在各章 `landscape.md` 中逐一标注。商用前请自行核对。
 
-> 📝 Part I 的正文（源码走读与「设计空间」小节）以[英文版](https://xinli95.github.io/Multimodal-101)为准，中文翻译进行中。notebook 为中英文版共用（英文）。
+> 📝 Part II 的正文中文翻译进行中，以[英文版](https://xinli95.github.io/Multimodal-101)为准。notebook 为中英文版共用（英文）。
 
 ---
 

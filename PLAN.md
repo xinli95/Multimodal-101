@@ -59,8 +59,8 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 - [x] **Batch 1 · 骨架**（`c8f1fc1`）：目录重组、`_toc.yml` / `intro.md` / `README.md` 重写、`landscape.md` 新建、Part II 迁移与合并、中英两版 build 干净。
 - [x] **Batch 2 · Part I 走读正文**（`84bb26b`、`b71f880`）：11 章共 ~2300 行（旧版整本 848 行）。
 - [x] **Batch 3 · notebooks**（`35855cb` `e153627` `f22c036` `bb6f700` `eead7e2` `53f924e`）：Part I 全部 **13 个 notebook** 写完并**实际执行**，输出已存进 `.ipynb`。CPU/随机权重批 8 个（01 config、02 tokens、03 pixels、04 anatomy、05 audio、06 decoder、07 PLE、07 MoE、08 masks），E2B 真权重批 5 个（00 hello、04 image、05 asr+video、09 cache、10 LoRA）。
-- [ ] **Batch 4 · Part II 改写**：接到主线术语上。
-- [ ] **Batch 5 · 中文版正文**：`book-zh/` Part I 走读翻译（目前只有导读部分的中文，正文指向英文版）。
+- [x] **Batch 4 · Part II 改写**（`e789806`）：五章开头都改写成「与 Part I 的关系」，并清掉重构造成的重复 —— ASR 已移入 Part I 05 章，22 章的 ASR 理论小节与模型表原本在讲第二遍，现在详表并入理解侧 landscape，22 章只留指针加一条真正属于它的观点（为理解优化的编码器与为重建优化的 codec，对同一输入目标相反）。
+- [x] **Batch 5 · 中文版正文**：`book-zh/` Part I 全 11 章走读、设计空间、自测题译毕，2256 行对英文版 2333 行，基本等量。Part II 正文中文版仍待补。
 
 ## 读源码挖到的、与「看 config 想当然」相反的事实
 
@@ -76,6 +76,11 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 8. **PEFT 无法包裹 `Gemma4ClippableLinear`**。`target_modules=["q_proj", ...]` 这种名字列表会同时命中视觉/音频塔里的同名模块，而它们是自定义 wrapper 不是 `nn.Linear`，直接 `ValueError`。必须用正则把范围限死在语言模型上：`r".*language_model.*\.(q_proj|k_proj|v_proj|o_proj)$"`。
 9. **LoRA adapter 数会比你预期的少，而且是对的**：E2B 上 `q_proj`/`o_proj` 各 35 个，`k_proj`/`v_proj` 各只有 15 个 —— 因为 15~34 层 KV 共享，压根没有 K/V 投影可以适配。`print_trainable_parameters()` 只会报一个偏小的数字，不会解释。
 10. **`Trainer` 在多卡机器上会自动开 DataParallel**，把整个模型复制到每张卡，24GB 板子直接 OOM。notebook 里用 `CUDA_VISIBLE_DEVICES=0` 钉死单卡。
+
+## 待办
+
+- Part II 正文（theory / landscape）的中文翻译。
+- Part II 的 notebook 多数仍是「计划中」占位（视频、统一模型、应用各章），可按需补。
 
 ## 实测数字（Part I notebook 的产出）
 
