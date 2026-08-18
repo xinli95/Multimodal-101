@@ -45,7 +45,11 @@ parts:
         sections:
           - file: 08-fusion-and-masks/notebooks/01_mask_heatmap.ipynb
       - file: 09-generation-and-serving/index.md
+        sections:
+          - file: 09-generation-and-serving/notebooks/01_generate_and_cache.ipynb
       - file: 10-finetuning/index.md
+        sections:
+          - file: 10-finetuning/notebooks/01_lora_sft.ipynb
       - file: landscape.md
   - caption: Part II · The Generation Side
     chapters:
