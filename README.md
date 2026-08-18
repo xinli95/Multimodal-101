@@ -51,6 +51,8 @@ Part I is written against **transformers 5.14.1**. Its behavioural notebooks use
 
 ## Contributing / translation policy
 
+The book is mid-restructure — [`PLAN.md`](PLAN.md) is the working blueprint: why the old modality-by-modality layout was replaced, what each chapter opens, batch-by-batch progress, and the list of things reading the source turned up that contradict what the config appears to say.
+
 - **English (`book/`) is the source of truth** — content changes land there first.
 - The Chinese edition (`book-zh/`) mirrors the same file layout; translate the changed pages after the English side merges.
 - Notebooks (`book/*/notebooks/*.ipynb`) exist only in English and are shared by both editions; the Chinese notebook index pages link to them.
