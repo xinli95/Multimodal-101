@@ -18,6 +18,7 @@ parts:
           - file: 01-config/notebooks/01_config_to_model.ipynb
       - file: 02-text-io/index.md
         sections:
+          - file: 02-text-io/notebooks/01_tokens_and_template.ipynb
           - file: 02-text-io/notebooks/02_tokenize_everything.ipynb
       - file: 03-image-processor/index.md
         sections:
@@ -27,6 +28,7 @@ parts:
           - file: 04-vision-tower/notebooks/03_compare_qwen3vl.ipynb
       - file: 05-audio-and-video/index.md
         sections:
+          - file: 05-audio-and-video/notebooks/01_audio_tower_anatomy.ipynb
           - file: 05-audio-and-video/notebooks/03_whisper_asr_compare.ipynb
       - file: 06-text-decoder/index.md
         sections:
