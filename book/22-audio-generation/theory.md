@@ -1,4 +1,4 @@
-# Theory · Speech & Audio
+# Theory · Audio Generation
 
 ## 1. Audio representations
 
@@ -6,12 +6,11 @@
 - **Neural codecs**: EnCodec / SoundStream / DAC — RVQ (residual vector quantization) turns audio into multi-layer discrete tokens; ~1.5kbps still sounds faithful
 - The codec is the "VAE of audio": the entire generation stack is built on top of it
 
-## 2. ASR (speech recognition)
+## 2. The understanding side, in one paragraph
 
-- **Whisper (2022)**: encoder-decoder + 680k hours of weak supervision; robustness comes from data, not architecture
-- Streaming families: CTC / RNN-T / TDT (NVIDIA Parakeet) — required for low-latency scenarios
-- Distillation and speedups: Distil-Whisper, faster-whisper (CTranslate2)
-- New trend: ASR being absorbed into omni models (Qwen3.5-Omni recognizes 113 languages)
+Speech *recognition* is covered in [chapter 05](../05-audio-and-video/index.md), where Gemma 4's own chunked-attention audio encoder is the subject and Whisper is the design-space comparison; the model list is in the [understanding landscape](../landscape.md). Two facts from there matter here. Whisper's robustness came from 680k hours of weak supervision rather than from architecture — data, not design. And ASR is being absorbed into general models: Gemma 4 E2B hears natively, and Qwen3.5-Omni recognises 113 languages, so "run an ASR model" is increasingly a latency decision rather than a capability one.
+
+What does *not* transfer is the representation. An encoder built for understanding throws away everything not needed to identify words; a codec built for generation must keep enough to reconstruct the waveform. Same input, opposite objectives — which is why §1's codecs look nothing like chapter 05's mel front end.
 
 ## 3. TTS: paradigm evolution
 

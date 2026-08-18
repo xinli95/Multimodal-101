@@ -1,6 +1,10 @@
-# 07 · Unified & Omni Models
+# 23 · Unified and Omni Models
 
-The capstone chapter: one model doing both understanding and generation, across all modalities. This is what the closed frontier (GPT-5, Gemini 3) actually is, and the most active open research direction. Theory clarifies the architecture routes to "unification"; practice runs BAGEL / InternVL-U / Qwen3.5-Omni.
+**How this connects to Part I.** Gemma 4 is unified on exactly one side: four input modalities, one output. [Chapter 08](../08-fusion-and-masks/index.md) showed how little it takes to get there — project everything into the text embedding space, `masked_scatter` it into the sequence, and the decoder never learns that an image was involved.
+
+Running that trick backwards is much harder, and this chapter is about why. Understanding wants continuous features; generation wants discrete tokens or a diffusion trajectory. Gemma 4 sidesteps the tension by never generating pixels. The models here confront it.
+
+Read this chapter as the answer to a question Part I deliberately left open: *if fusing four modalities into one sequence is that easy, why is generating them back out still an open research problem?*
 
 ## Learning goals
 

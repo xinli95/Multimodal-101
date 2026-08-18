@@ -3,7 +3,7 @@
 ## 1. Multimodal RAG
 
 - Two routes:
-  - **Parse route**: document → OCR/parse to text (ch. 02) → text RAG. Controllable and traceable — the engineering mainstream
+  - **Parse route**: document → OCR/parse to text ([chapter 03](../03-image-processor/index.md)'s token budget decides whether it is readable) → text RAG. Controllable and traceable — the engineering mainstream
   - **Visual retrieval route**: ColPali/ColQwen style — embed pages visually, skip parsing. Less plumbing; strong on long-tail layouts
 - Multimodal embedding models: CLIP-family vs. late interaction on VLM backbones
 - Choosing: table-dense → parse; scans/chart-heavy → visual retrieval; production often runs both

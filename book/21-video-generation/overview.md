@@ -1,6 +1,10 @@
-# 05 · Video Generation
+# 21 · Video Generation
 
-Image generation extended into time: Video DiT, 3D causal VAE, spatiotemporal attention. In practice we run Wan 2.2 / HunyuanVideo 1.5 locally and call the Veo 3.1 API — and learn why video is today's most compute-hungry modality.
+**How this connects to Part I.** [Chapter 05](../05-audio-and-video/index.md) took video *in*, and the striking thing was how little machinery it needed: sample 32 frames, run each through the image tower, write `MM:SS` timestamps into the prompt as text. No temporal attention, no 3D convolution. Understanding a video, it turns out, is mostly understanding a handful of pictures in order.
+
+Generating one is not. The moment you have to *produce* frame 17 rather than merely read it, temporal consistency stops being free — and everything in this chapter exists to buy it back. That asymmetry is the most useful thing to carry across from Part I: a model that reads video can get away with frame sampling; a model that writes video cannot.
+
+The vocabulary still transfers. A video DiT patchifies its latent the way [chapter 04](../04-vision-tower/index.md)'s vision tower patchifies an image, then attends over the resulting grid — only now the grid has a time axis, and the attention bill grows accordingly.
 
 ## Learning goals
 

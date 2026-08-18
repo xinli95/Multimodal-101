@@ -32,3 +32,6 @@ outputs/
 book/_build/
 
 book-zh/_build/
+
+# Fine-tuning artifacts from chapter 10 notebooks
+lora-shapes/

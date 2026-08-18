@@ -1,15 +1,8 @@
-# Landscape · Speech & Audio
+# Landscape · Audio Generation
 
 > **Last verified: 2026-08-02** — re-check if this is more than 6 months old.
 
-## ASR (open)
-
-| Model | Org | License | Use for |
-|---|---|---|---|
-| Whisper Large V3 / Turbo | OpenAI | MIT | The multilingual default |
-| Parakeet TDT | NVIDIA | CC-BY-4.0 | Low-latency streaming |
-| Distil-Whisper | HF | MIT | Speed first |
-| Moonshine | Useful Sensors | MIT | Smallest edge footprint |
+> ASR models live in the [understanding landscape](../landscape.md) alongside Gemma 4's audio tower; this page is the generation side.
 
 ## TTS (open / open-weight)
 

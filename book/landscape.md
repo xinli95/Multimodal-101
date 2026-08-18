@@ -65,11 +65,15 @@ Benchmarks: OmniDocBench (most comprehensive), OCRBench v2, olmOCR-Bench.
 
 ## Speech understanding
 
-| Model | Org | Notes |
-|---|---|---|
-| Whisper (large-v3 / turbo) | OpenAI | The encoder-decoder ASR baseline everything is measured against |
-| Gemma 4 E2B/E4B audio tower | Google | Chunked-attention encoder inside a general multimodal model — [chapter 05](05-audio-and-video/index.md) |
-| Parakeet / Canary | NVIDIA | The CTC/transducer streaming line |
+| Model | Org | License | Use for |
+|---|---|---|---|
+| **Gemma 4 E2B/E4B audio tower** | Google | Gemma terms | Chunked-attention encoder inside a general multimodal model — transcription *and* reasoning on one code path ([chapter 05](05-audio-and-video/index.md)) |
+| Whisper Large V3 / Turbo | OpenAI | MIT | The multilingual default, and the baseline everything is measured against |
+| Parakeet TDT | NVIDIA | CC-BY-4.0 | Low-latency streaming (CTC/transducer line) |
+| Distil-Whisper | HF | MIT | Speed first |
+| Moonshine | Useful Sensors | MIT | Smallest edge footprint |
+
+The trade is not accuracy, it is what the output is *for*. Whisper's encoder feeds a decoder that only knows how to emit transcripts; Gemma 4's feeds a general language model, so "transcribe this" and "does the speaker's tone match their slide" are the same call. [Chapter 05's notebook](05-audio-and-video/notebooks/03_whisper_asr_compare.ipynb) runs both on the same audio.
 
 ## Where things are heading
 

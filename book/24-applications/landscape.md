@@ -6,10 +6,10 @@
 
 | Component | Open picks | Notes |
 |---|---|---|
-| Document parsing | DeepSeek-OCR-2, olmOCR-2, MinerU | See ch. 02 |
+| Document parsing | DeepSeek-OCR-2, olmOCR-2, MinerU | See the [understanding landscape](../landscape.md) |
 | Visual retrieval embeddings | ColQwen family, Jina-CLIP, BGE-VL | Late interaction scores best but indexes are large |
 | Vector stores | Qdrant, LanceDB, Milvus | All support multi-vector / late interaction now |
-| Generation end | Qwen3-VL / closed VLM APIs | See ch. 01 |
+| Generation end | Qwen3-VL / closed VLM APIs | See [Part I](../00-orientation/index.md) |
 
 ## Agent frameworks and models
 
