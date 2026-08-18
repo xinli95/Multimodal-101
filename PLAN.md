@@ -58,7 +58,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 
 - [x] **Batch 1 · 骨架**（`c8f1fc1`）：目录重组、`_toc.yml` / `intro.md` / `README.md` 重写、`landscape.md` 新建、Part II 迁移与合并、中英两版 build 干净。
 - [x] **Batch 2 · Part I 走读正文**（`84bb26b`、`b71f880`）：11 章共 ~2300 行（旧版整本 848 行）。
-- [ ] **Batch 3 · notebooks**：先 CPU/随机权重批（01/02/03/05-anatomy/06/07-moe/08），再 E2B 真权重批（00/04/05/09/10）。
+- [x] **Batch 3 · notebooks**（`35855cb` `e153627` `f22c036` `bb6f700` `eead7e2` `53f924e`）：Part I 全部 **13 个 notebook** 写完并**实际执行**，输出已存进 `.ipynb`。CPU/随机权重批 8 个（01 config、02 tokens、03 pixels、04 anatomy、05 audio、06 decoder、07 PLE、07 MoE、08 masks），E2B 真权重批 5 个（00 hello、04 image、05 asr+video、09 cache、10 LoRA）。
 - [ ] **Batch 4 · Part II 改写**：接到主线术语上。
 - [ ] **Batch 5 · 中文版正文**：`book-zh/` Part I 走读翻译（目前只有导读部分的中文，正文指向英文版）。
 
@@ -72,6 +72,19 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 4. **KV 共享边界之前必须至少留一个该类型的「捐赠」层**（搭迷你 config 时撞出来的）。`store_full_length_kv` 标记捐赠层，滑窗层与全局层各需一个，因为两者 RoPE 不同、KV 不可互换。E2B 是 35 层共享 20 层，边界在 15，全局层在 4/9/14，正好留住 14。违反时报 `KeyError: 'full_attention'`。
 5. **像素预算是目标而非上限**——100×100 的缩略图在默认档下被放大到 768×768 并收 256 个 soft token。批处理小图时应显式降档。
 6. **视频每帧只值 70 soft token**（图片是 280），32 帧共 2240；时间戳以 `MM:SS` 字面文本写进 prompt，而不是位置编码。
+7. **KV 共享边界之前必须留一个该类型的捐赠层**（搭迷你 config 时撞出来）。`store_full_length_kv` 标记捐赠层，滑窗层与全局层各需一个，因为两者 RoPE 不同、KV 不可互换。12 层模型（全局层在 5、11）最多只能共享 6 层；违反时报 `KeyError: 'full_attention'`。
+8. **PEFT 无法包裹 `Gemma4ClippableLinear`**。`target_modules=["q_proj", ...]` 这种名字列表会同时命中视觉/音频塔里的同名模块，而它们是自定义 wrapper 不是 `nn.Linear`，直接 `ValueError`。必须用正则把范围限死在语言模型上：`r".*language_model.*\.(q_proj|k_proj|v_proj|o_proj)$"`。
+9. **LoRA adapter 数会比你预期的少，而且是对的**：E2B 上 `q_proj`/`o_proj` 各 35 个，`k_proj`/`v_proj` 各只有 15 个 —— 因为 15~34 层 KV 共享，压根没有 K/V 投影可以适配。`print_trainable_parameters()` 只会报一个偏小的数字，不会解释。
+10. **`Trainer` 在多卡机器上会自动开 DataParallel**，把整个模型复制到每张卡，24GB 板子直接 OOM。notebook 里用 `CUDA_VISIBLE_DEVICES=0` 钉死单卡。
+
+## 实测数字（Part I notebook 的产出）
+
+- **KV cache 曲线**（E2B，bf16）：滑窗层从 512 token 起**饱和在 6.28MB** 不再增长，全局层线性增长；全局层占比从 128 token 的 33% 涨到 8192 token 的 **89%**。这是 5:1 混合注意力全部理由的量化版本。
+- **批量吞吐**：batch 1→16 吞吐 12.6→193.5 tok/s（**15.4×**），墙钟时间几乎不变（2.55s→2.65s）。解码是显存带宽瓶颈，批量近乎免费。
+- **static cache 要诚实报**：首次调用 109s（编译），之后 0.75s，对比 dynamic 的 5.15s —— 约 **25 次同形状生成才回本**。它是 `torch.compile` 的使能条件，不是免费加速。
+- **OCR 悬崖实测**：让模型读一张生成页上的 `QX-7741-ZB`，70 soft token 读成 `QQ-7414-2B`，140 丢连字符，280 空格错乱，560/1120 才完全正确。
+- **PLE 表占 E2B checkpoint 的 46%**（2.35B / 5.10B），是单个最大张量。
+- **LoRA 效果**：96 条合成样本、3 epoch，把冗长散文答案调成严格 `SHAPE=x;COLOR=y` 格式，留出集 4/4 全对，adapter 仅 10.8MB。
 
 ## 验证方式
 
@@ -79,8 +92,9 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 - toc 条目全部存在、无孤儿页、相对链接可解析（有校验脚本思路见提交历史）。
 - CPU/随机权重类 notebook：`jupyter nbconvert --execute` 全跑通，输出存进 `.ipynb`（读者无卡也能看到结果）。注意 kernelspec 用的是裸 `python`，执行时需确保 PATH 指向目标环境。
 - 手写复现类 cell 必须带 `torch.testing.assert_close` 断言——既是教学点也是回归测试。
-- 真权重类 notebook 受磁盘约束（见下），未能本机执行的会明确标注。
+- **notebook 执行环境有坑**：kernelspec 的 `argv` 是裸 `python`，`nbconvert` 会跟着 PATH 抓到别的解释器（本机会抓到 `/opt/sys-venv` 的 transformers 5.15.0）。已注册一个 `mm101` kernel，`argv[0]` 写死 `/venv/main/bin/python`，执行时用 `--ExecutePreprocessor.kernel_name=mm101`，跑完再把 kernelspec 还原成 `python3`。
+- **`uv pip install` 会悄悄升级底座**：装 `peft`/`datasets` 时把 `torch` 升到 2.13、`transformers` 升到 5.15 装进 venv，盖住系统的 2.11+cu130，导致 `torchvision::nms does not exist`。解决办法是把 venv 里这两个卸掉，让它回落到系统版本。装任何新依赖后都要复核 `torch.__file__` 和 `transformers.__version__`。
 
 ## 已知约束
 
-**磁盘**：开发这台实例 `/` 只剩约 11GB，而 `google/gemma-4-E2B-it` 权重 10.25GB，下完几乎归零。E2B 真权重那批 notebook 因此可能只写不跑；凡未在本机执行过的，都会在 notebook 里标注，并只做静态检查（`inspect.signature` 核对 API 名与参数）。
+**磁盘**（已解决）：这台实例 `/` 曾只剩约 5GB，装不下 10.25GB 的 E2B 权重。经用户确认后停掉了本机 vLLM 服务并删除其 18GB 的 `Qwen/Qwen3.5-9B` 缓存，腾出空间完成真权重那批 notebook。注意 `supervisorctl stop vllm` 不会回收 GPU 显存——engine/worker 进程会存活，需要手动 kill 才能拿回 2×21GB 显存。若要恢复 vLLM 服务，`VLLM_MODEL` / `MODEL_NAME` 仍在 `/etc/environment` 里，重新下载权重即可。
