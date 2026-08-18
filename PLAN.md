@@ -12,7 +12,7 @@ Gemma 4 是理想教具：一个开源 checkpoint 家族同时覆盖文本/图�
 
 ## 四个已定决策
 
-1. **两部分结构**：Part I 新主线（Gemma 4 解剖，11 章），Part II 保留并压缩生成类章节（5 章）。
+1. **两部分结构**：Part I 新主线（Gemma 4 解剖 11 章 + GLM-OCR 迁移式 capstone），Part II 保留并压缩生成类章节（5 章）。
 2. **深度：源码级 + 手写复现**——逐段读本机 `transformers` 的 `models/gemma4/*.py`，notebook 用 hook 打印中间张量，并手写复现关键模块与官方输出 `assert_close` 对拍。
 3. **双语：先英文**（`book/` 为唯一源），中文 `book-zh/` 随后补。
 4. **硬件基线：E2B 真权重为主 + 随机权重兜底**——纯架构解剖类 notebook 用 `Gemma4Config` 造极小随机权重模型，CPU 可跑、零下载；能力展示类用 `google/gemma-4-E2B-it`（10.25GB，未 gated，单卡 24GB 够）。
@@ -23,7 +23,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 
 ## 章节结构
 
-### Part I · Gemma 4 解剖（11 章）
+### Part I · Gemma 4 解剖（11 章）+ 方法迁移 capstone
 
 每章统一为 `index.md`（导读 → 源码走读 → 「设计空间」对比 → 自测题）+ `notebooks/`。取消了旧的 `overview/theory/landscape` 三件套——走读本身就是主体。「设计空间」小节负责装回原 00/01/02 章的谱系知识（CLIP→BLIP-2→LLaVA→Qwen3-VL/InternVL），保证不是只见一棵树。
 
@@ -40,6 +40,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 | 08 | `08-fusion-and-masks/` | `get_placeholder_mask`、`create_masks_for_vision_model` |
 | 09 | `09-generation-and-serving/` | `Gemma4ForConditionalGeneration`、Cache、vLLM |
 | 10 | `10-finetuning/` | `Trainer`、`peft`、多模态 collator |
+| 11 | `11-glm-ocr/` | 把 config → processor → vision → fusion → decoder → serving → fine-tuning 的方法迁移到专用 OCR；区分 checkpoint、MTP serving 与 layout pipeline |
 | — | `landscape.md` | 理解侧格局总览（合并原 00/01/02 的 landscape） |
 
 ### Part II · 生成篇（5 章）
@@ -61,6 +62,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 - [x] **Batch 3 · notebooks**（`35855cb` `e153627` `f22c036` `bb6f700` `eead7e2` `53f924e`）：Part I 全部 **13 个 notebook** 写完并**实际执行**，输出已存进 `.ipynb`。CPU/随机权重批 8 个（01 config、02 tokens、03 pixels、04 anatomy、05 audio、06 decoder、07 PLE、07 MoE、08 masks），E2B 真权重批 5 个（00 hello、04 image、05 asr+video、09 cache、10 LoRA）。
 - [x] **Batch 4 · Part II 改写**（`e789806`）：五章开头都改写成「与 Part I 的关系」，并清掉重构造成的重复 —— ASR 已移入 Part I 05 章，22 章的 ASR 理论小节与模型表原本在讲第二遍，现在详表并入理解侧 landscape，22 章只留指针加一条真正属于它的观点（为理解优化的编码器与为重建优化的 codec，对同一输入目标相反）。
 - [x] **Batch 5 · 中文版**：`book-zh/` Part I 全 11 章走读、设计空间、自测题译毕（2256 行对英文版 2333 行）；Part II 五章的导读也已重写并接上主线，ASR 去重同步到中文版。两版内容现已对齐，仅 notebook 为共用的英文版。
+- [x] **Batch 6 · OCR capstone**：新增 GLM-OCR 源码走读、四类输出契约、MTP serving 边界、layout-aware pipeline 与三个 notebook；DeepSeek-OCR-2 留作 Chapter 24 的 specialist control。
 
 ## 读源码挖到的、与「看 config 想当然」相反的事实
 

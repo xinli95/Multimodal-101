@@ -6,7 +6,7 @@ The point of this chapter is that those are not separate topics. A multimodal RA
 
 ## Learning goals
 
-- Build multimodal RAG: document parsing + multimodal embedding retrieval + VLM generation, with the token budget worked out in advance
+- Build multimodal RAG: document parsing ([ch. 11](../11-glm-ocr/index.md)) + multimodal embedding retrieval + VLM generation, with the token budget worked out in advance
 - Understand the core loop of a multimodal agent: screenshot understanding → decision → action (GUI agents)
 - Develop evaluation instincts: automatic metrics, LLM-as-judge, arena blind tests — where each applies and where each traps you
 - Learn the production concerns: visual token cost, latency, caching, model routing

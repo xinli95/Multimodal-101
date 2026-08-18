@@ -46,18 +46,20 @@ The three design-space axes worth comparing while reading Part I:
 
 | Model | Org | Size | License | Highlights |
 |---|---|---|---|---|
+| **GLM-OCR** | Z.ai | 0.9B | MIT weights / Apache-2.0 SDK | **[Chapter 11's transfer case.](11-glm-ocr/index.md)** 0.4B CogViT + 0.5B GLM; MTP serving; text/table/formula/KIE; SDK adds PP-DocLayout-V3 and parallel region OCR |
 | **DeepSeek-OCR-2** | DeepSeek | ~3B | MIT | Released 2026-01; grounded Markdown, high throughput — a top open pick for "PDF → Markdown" |
 | **olmOCR-2** | AI2 | 8B | Apache 2.0 | Fully open (data/training/eval); OmniDocBench average 83+ |
 | PaddleOCR-VL-1.5 | Baidu | ~0.9B | Apache 2.0 | SOTA-class results at a tiny parameter count; edge/batch friendly |
 | Chandra | Datalab | 9B | - | Strong multilingual |
 | MinerU / Marker | community | pipeline | mind AGPL/GPL | Practical tools from the classical-pipeline school |
 
-General VLMs are now good enough at OCR that light document workloads may not need a specialist — and Gemma 4's soft-token menu ([chapter 03](03-image-processor/index.md)) is exactly the knob that decides whether it will read your small print. Closed APIs remain the robustness ceiling for complex tables and handwriting, but cost more and lack coordinate grounding.
+General VLMs are now good enough at OCR that light document workloads may not need a specialist — and Gemma 4's soft-token menu ([chapter 03](03-image-processor/index.md)) is exactly the knob that decides whether it will read your small print. Specialist OCR is not one architecture: GLM-OCR combines a compact generative base model with an explicit layout pipeline, DeepSeek-OCR emphasises grounded output, and olmOCR emphasises openness of data and evaluation. Compare **checkpoint**, **pipeline**, and **output contract**, not just model names. Closed APIs remain the robustness ceiling for some complex tables and handwriting, but cost more and usually expose less stage-level provenance.
 
 | Scenario | Pick |
 |---|---|
-| Bulk PDF processing (own GPUs) | DeepSeek-OCR-2 / olmOCR-2 |
-| Edge or CPU-only environment | PaddleOCR-VL-1.5 |
+| Bulk PDF processing (own GPUs) | GLM-OCR SDK / DeepSeek-OCR-2 / olmOCR-2 — benchmark your layout mix |
+| Compact local specialist | GLM-OCR / PaddleOCR-VL-1.5 |
+| Schema-driven KIE | GLM-OCR, with strict schema + field-level eval |
 | Few, high-value, extremely complex documents | Closed VLM APIs |
 | Traceability required (bbox provenance) | DeepSeek-OCR-2 (grounded output) |
 

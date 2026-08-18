@@ -1,15 +1,15 @@
 # Landscape · Applications & Evaluation
 
-> **Last verified: 2026-08-02** — re-check if this is more than 6 months old.
+> **Last verified: 2026-08-17** — re-check if this is more than 6 months old.
 
 ## Multimodal RAG components
 
 | Component | Open picks | Notes |
 |---|---|---|
-| Document parsing | DeepSeek-OCR-2, olmOCR-2, MinerU | See the [understanding landscape](../landscape.md) |
+| Document parsing | GLM-OCR, DeepSeek-OCR-2, olmOCR-2, MinerU | See [ch. 11](../11-glm-ocr/index.md); the DeepSeek control remains in this chapter's notebook |
 | Visual retrieval embeddings | ColQwen family, Jina-CLIP, BGE-VL | Late interaction scores best but indexes are large |
 | Vector stores | Qdrant, LanceDB, Milvus | All support multi-vector / late interaction now |
-| Generation end | Qwen3-VL / closed VLM APIs | See [Part I](../00-orientation/index.md) |
+| Generation end | Gemma 4, Qwen3-VL / closed VLM APIs | See Part I and the understanding [landscape](../landscape.md) |
 
 ## Agent frameworks and models
 

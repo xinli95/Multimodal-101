@@ -2,7 +2,7 @@
 
 Multimodal AI, taught by taking **one model apart** instead of listing many from the outside.
 
-**Part I** follows a single prompt all the way through [Gemma 4](https://huggingface.co/docs/transformers/en/model_doc/gemma4) — config → chat template → image/audio front ends → vision and audio towers → the fusion point where four modalities become one sequence → the decoder (PLE, MoE, sliding-window attention, KV sharing) → `generate()` → LoRA fine-tuning. Every chapter opens the real implementation in `transformers/models/gemma4/`, names the classes, traces the tensors, and rebuilds a piece of it by hand with an assertion that the result matches the library. You learn how a multimodal model works and how to use `transformers` at the same time, because they turn out to be the same lesson.
+**Part I** follows a single prompt all the way through [Gemma 4](https://huggingface.co/docs/transformers/en/model_doc/gemma4) — config → chat template → image/audio front ends → vision and audio towers → the fusion point where four modalities become one sequence → the decoder (PLE, MoE, sliding-window attention, KV sharing) → `generate()` → LoRA fine-tuning. Every chapter opens the real implementation in `transformers/models/gemma4/`, names the classes, traces the tensors, and rebuilds a piece of it by hand with an assertion that the result matches the library. A final GLM-OCR capstone then applies the same method to a specialist model and its layout-aware production pipeline. You learn how a multimodal model works and how to use `transformers` at the same time, because they turn out to be the same lesson.
 
 **Part II** covers what Gemma 4 does not do — text in, pixels and sound out: diffusion/DiT/flow matching, image editing, video, TTS, and unified models. These chapters keep the survey format (theory, landscape with a last-verified date, notebooks), because breadth is the right shape there.
 
@@ -27,6 +27,7 @@ Built with the [TeachBooks](https://teachbooks.io) template, same as [AI-101](ht
 | [08 · Fusion and Masks](book/08-fusion-and-masks/index.md) | Where the modalities actually meet |
 | [09 · Generation and Serving](book/09-generation-and-serving/index.md) | `generate()`, caches, batching, vLLM |
 | [10 · Fine-Tuning](book/10-finetuning/index.md) | What to freeze, LoRA, collators, memory |
+| [11 · GLM-OCR](book/11-glm-ocr/index.md) | Transfer the anatomy method to specialist OCR, MTP serving, and a layout-aware pipeline |
 | [Landscape](book/landscape.md) | Where Gemma 4 sits among everything else that reads |
 
 | Part II · The Generation Side | |
@@ -47,7 +48,7 @@ teachbooks build book-zh    # Chinese edition
 
 Then open `book/_build/html/index.html` (or `book-zh/_build/html/index.html`).
 
-Part I is written against **transformers 5.14.1**. Its behavioural notebooks use `google/gemma-4-E2B-it` (~10GB, not gated, fits a single 24GB GPU); its structural notebooks use randomly-initialised miniature configs and run on a CPU with no downloads.
+Part I is written against **transformers 5.14.1**. Its behavioural notebooks use `google/gemma-4-E2B-it` (~10GB, not gated, fits a single 24GB GPU) and `zai-org/GLM-OCR` (~2.66GB BF16); its structural notebooks use randomly-initialised miniature configs and run on a CPU with no weight downloads.
 
 ## Contributing / translation policy
 
