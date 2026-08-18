@@ -29,8 +29,15 @@ parts:
         sections:
           - file: 05-audio-and-video/notebooks/03_whisper_asr_compare.ipynb
       - file: 06-text-decoder/index.md
+        sections:
+          - file: 06-text-decoder/notebooks/01_decoder_anatomy.ipynb
       - file: 07-ple-and-moe/index.md
+        sections:
+          - file: 07-ple-and-moe/notebooks/01_ple_ablation.ipynb
+          - file: 07-ple-and-moe/notebooks/02_moe_routing.ipynb
       - file: 08-fusion-and-masks/index.md
+        sections:
+          - file: 08-fusion-and-masks/notebooks/01_mask_heatmap.ipynb
       - file: 09-generation-and-serving/index.md
       - file: 10-finetuning/index.md
       - file: landscape.md
