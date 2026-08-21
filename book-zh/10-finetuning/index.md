@@ -17,10 +17,10 @@ Part I 的最后一章闭环。一旦你知道每个模块在做什么，"这个
 
 | 符号 | 作用 |
 |---|---|
-| `Gemma4PreTrainedModel` | `_init_weights`、`resize_token_embeddings`、`_resize_per_layer_embeddings`（加 token 也会动 PLE 表——07 章） |
-| `Gemma4Model.vision_tower` / `.audio_tower` / `.embed_vision` / `.embed_audio` / `.language_model` | 你要冻结或解冻的四组 |
-| `Trainer`、`TrainingArguments` | `transformers` 的训练循环 |
-| `peft.LoraConfig`、`get_peft_model` | 适配器 |
+| [`Gemma4PreTrainedModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1480) | [`_init_weights`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1501)、[`resize_token_embeddings`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1559)、[`_resize_per_layer_embeddings`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1573)（加 token 也会动 PLE 表——07 章） |
+| [`Gemma4Model.vision_tower`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2191) / [`.audio_tower`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2197) / [`.embed_vision`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2198) / [`.embed_audio`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2203) / [`.language_model`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2195) | 你要冻结或解冻的四组 |
+| [`Trainer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/trainer.py#L257)、[`TrainingArguments`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/training_args.py#L179) | `transformers` 的训练循环 |
+| [`peft.LoraConfig`](https://github.com/huggingface/peft/blob/main/src/peft/tuners/lora/config.py#L434)、[`get_peft_model`](https://github.com/huggingface/peft/blob/main/src/peft/mapping_func.py#L105) | 适配器 |
 
 ## 源码走读
 

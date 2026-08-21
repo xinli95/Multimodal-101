@@ -25,14 +25,14 @@ For multimodal positions there are no `input_ids` to look up — a soft token is
 
 | Symbol in `modeling_gemma4.py` | Role |
 |---|---|
-| `Gemma4TextModel.get_per_layer_inputs` | The token-identity half |
-| `Gemma4TextModel.project_per_layer_inputs` | The context-aware half, the `1/√2` merge, and the multimodal fallback |
-| `Gemma4TextScaledWordEmbedding` | Also used for the PLE table, with its own `embed_scale` |
-| `Gemma4TextRouter`, `Gemma4TextExperts` | The MoE path |
-| `Gemma4TextDecoderLayer.forward` | Where the per-layer input is actually consumed |
-| `Gemma4PreTrainedModel._resize_per_layer_embeddings` | What vocabulary resizing has to do about the second table |
+| [`Gemma4TextModel.get_per_layer_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1744) | The token-identity half |
+| [`Gemma4TextModel.project_per_layer_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1788) | The context-aware half, the `1/√2` merge, and the multimodal fallback |
+| [`Gemma4TextScaledWordEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1465) | Also used for the PLE table, with its own `embed_scale` |
+| [`Gemma4TextRouter`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1339), [`Gemma4TextExperts`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1300) | The MoE path |
+| [`Gemma4TextDecoderLayer.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1405) | Where the per-layer input is actually consumed |
+| [`Gemma4PreTrainedModel._resize_per_layer_embeddings`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1573) | What vocabulary resizing has to do about the second table |
 
-Config fields: `vocab_size_per_layer_input`, `hidden_size_per_layer_input` (256), `enable_moe_block`, `num_experts`, `top_k_experts`, `moe_intermediate_size`, `use_double_wide_mlp`.
+Config fields: [`vocab_size_per_layer_input`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L180), [`hidden_size_per_layer_input`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L181) (256), [`enable_moe_block`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L186), [`num_experts`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L188), [`top_k_experts`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L189), [`moe_intermediate_size`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L190), [`use_double_wide_mlp`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L187).
 
 ## Walkthrough — PLE
 

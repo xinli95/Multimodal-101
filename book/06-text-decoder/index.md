@@ -21,13 +21,13 @@ Each of those is a specific trade of quality against memory, and each is a few l
 
 | Symbol in `modeling_gemma4.py` | Role |
 |---|---|
-| `Gemma4TextAttention` | GQA + q/k/v RMSNorm, sliding vs. global branching, KV sharing, K=V |
-| `Gemma4TextRotaryEmbedding` (`compute_default_rope_parameters`) | Per-layer-type RoPE |
-| `sliding_window_mask_function` | The window as a boolean predicate over `(q_idx, kv_idx)` |
-| `Gemma4TextMLP`, `Gemma4TextDecoderLayer` | The block |
-| `Gemma4TextModel.forward` | The loop, the shared-KV dict, and mask construction |
-| `Gemma4ForCausalLM` | lm_head + logit softcapping |
-| `repeat_kv`, `eager_attention_forward`, `apply_rotary_pos_emb` | The reference implementations to read before the fused kernels |
+| [`Gemma4TextAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1183) | GQA + q/k/v RMSNorm, sliding vs. global branching, KV sharing, K=V |
+| [`Gemma4TextRotaryEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1093) ([`compute_default_rope_parameters`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1129)) | Per-layer-type RoPE |
+| [`sliding_window_mask_function`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1915) | The window as a boolean predicate over `(q_idx, kv_idx)` |
+| [`Gemma4TextMLP`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1074), [`Gemma4TextDecoderLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1376) | The block |
+| [`Gemma4TextModel.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1653) | The loop, the shared-KV dict, and mask construction |
+| [`Gemma4ForCausalLM`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1825) | lm_head + logit softcapping |
+| [`repeat_kv`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L815), [`eager_attention_forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L827), [`apply_rotary_pos_emb`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L793) | The reference implementations to read before the fused kernels |
 
 ## Walkthrough
 

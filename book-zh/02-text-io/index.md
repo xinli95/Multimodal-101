@@ -30,12 +30,12 @@
 
 | 文件 | 符号 | 作用 |
 |---|---|---|
-| `processing_gemma4.py` | `Gemma4Processor.__call__` | 四个模态共用的入口 |
-| | `prepare_inputs_layout`、`validate_inputs` | 交错输入的顺序与一致性 |
-| | `replace_image_token` / `replace_audio_token` / `replace_video_token` | 占位符段展开 |
-| | `_get_num_multimodal_tokens`、`_compute_audio_num_tokens` | 每份输入值多少个占位符 |
-| `modeling_gemma4.py` | `Gemma4Model.get_placeholder_mask` | 消费端：把这些占位符再找回来 |
-| | `Gemma4TextScaledWordEmbedding` | 乘以 `√hidden_size` 的 embedding 查表 |
+| `processing_utils.py` / `processing_gemma4.py` | [`Gemma4Processor.__call__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L648) | 四个模态共用的继承入口 |
+| `processing_gemma4.py` | [`prepare_inputs_layout`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L110)、[`validate_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L134) | 交错输入的顺序与一致性 |
+| | [`replace_image_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L169) / [`replace_audio_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L192) / [`replace_video_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L173) | 占位符段展开 |
+| | [`_get_num_multimodal_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L205)、[`_compute_audio_num_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L260) | 每份输入值多少个占位符 |
+| `modeling_gemma4.py` | [`Gemma4Model.get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2231) | 消费端：把这些占位符再找回来 |
+| | [`Gemma4TextScaledWordEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1465) | 乘以 `√hidden_size` 的 embedding 查表 |
 
 ## 源码走读
 

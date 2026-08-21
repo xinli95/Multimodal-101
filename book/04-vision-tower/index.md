@@ -21,14 +21,14 @@ This is the chapter where an image becomes something the language model can read
 
 | Symbol in `modeling_gemma4.py` | Role |
 |---|---|
-| `Gemma4VisionPatchEmbedder` | Patch projection + learned 2D position table (`_position_embeddings`) |
-| `Gemma4VisionRotaryEmbedding`, `apply_multidimensional_rope` | 2D RoPE: per-axis rotation of half the head dims |
-| `Gemma4VisionAttention`, `Gemma4VisionEncoderLayer`, `Gemma4VisionEncoder` | The stack |
-| `Gemma4VisionPooler`, `_avg_pool_by_positions` | 3×3 pooling driven by patch coordinates |
-| `Gemma4VisionModel` | The assembled tower |
-| `Gemma4MultimodalEmbedder` | Vision hidden size → text embedding space |
-| `Gemma4Model.get_image_features` | The one call that runs all of the above |
-| `Gemma4ClippableLinear`, `Gemma4RMSNorm` | Numerical-stability building blocks used throughout |
+| [`Gemma4VisionPatchEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L579) | Patch projection + learned 2D position table (`_position_embeddings`) |
+| [`Gemma4VisionRotaryEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L707), [`apply_multidimensional_rope`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L861) | 2D RoPE: per-axis rotation of half the head dims |
+| [`Gemma4VisionAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L917), [`Gemma4VisionEncoderLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L986), [`Gemma4VisionEncoder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1030) | The stack |
+| [`Gemma4VisionPooler`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L624), [`_avg_pool_by_positions`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L637) | 3×3 pooling driven by patch coordinates |
+| [`Gemma4VisionModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2017) | The assembled tower |
+| [`Gemma4MultimodalEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2085) | Vision hidden size → text embedding space |
+| [`Gemma4Model.get_image_features`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2212) | The one call that runs all of the above |
+| [`Gemma4ClippableLinear`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L168), [`Gemma4RMSNorm`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L197) | Numerical-stability building blocks used throughout |
 
 ## Walkthrough
 

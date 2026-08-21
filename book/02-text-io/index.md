@@ -30,12 +30,12 @@ The 40ms per audio token is not arbitrary: it falls out of the audio tower's 4×
 
 | File | Symbol | Role |
 |---|---|---|
-| `processing_gemma4.py` | `Gemma4Processor.__call__` | The front door for all four modalities |
-| | `prepare_inputs_layout`, `validate_inputs` | Ordering and consistency of interleaved inputs |
-| | `replace_image_token`, `replace_audio_token`, `replace_video_token` | Placeholder-run expansion |
-| | `_get_num_multimodal_tokens`, `_compute_audio_num_tokens` | How many placeholders each input is worth |
-| `modeling_gemma4.py` | `Gemma4Model.get_placeholder_mask` | The consumer side: finding those placeholders again |
-| | `Gemma4TextScaledWordEmbedding` | Embedding lookup scaled by `√hidden_size` |
+| `processing_utils.py` / `processing_gemma4.py` | [`Gemma4Processor.__call__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L648) | The inherited front door for all four modalities |
+| `processing_gemma4.py` | [`prepare_inputs_layout`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L110), [`validate_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L134) | Ordering and consistency of interleaved inputs |
+| | [`replace_image_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L169), [`replace_audio_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L192), [`replace_video_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L173) | Placeholder-run expansion |
+| | [`_get_num_multimodal_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L205), [`_compute_audio_num_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L260) | How many placeholders each input is worth |
+| `modeling_gemma4.py` | [`Gemma4Model.get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2231) | The consumer side: finding those placeholders again |
+| | [`Gemma4TextScaledWordEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1465) | Embedding lookup scaled by `√hidden_size` |
 
 ## Walkthrough
 

@@ -30,11 +30,11 @@ Gemma 4 的答案是**像素预算**：保持长宽比，把图缩放到总像�
 
 | 文件 | 符号 | 作用 |
 |---|---|---|
-| `image_processing_gemma4.py` | `_SUPPORTED_SOFT_TOKENS` | 上面那张菜单 |
-| | `get_aspect_ratio_preserving_size` | 预算求解：由图像尺寸 + patch 预算算出目标尺寸 |
-| | `convert_image_to_patches` | 网格 → patch 序列 |
-| | `pad_along_first_dim` | 把 patch 数不等的一批补齐 |
-| | `Gemma4ImageProcessor` | 快速路径；`Gemma4ImageProcessorPil` 是 PIL 回退实现 |
+| `image_processing_gemma4.py` | [`_SUPPORTED_SOFT_TOKENS`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L29) | 上面那张菜单 |
+| | [`get_aspect_ratio_preserving_size`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L33) | 预算求解：由图像尺寸 + patch 预算算出目标尺寸 |
+| | [`convert_image_to_patches`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L88) | 网格 → patch 序列 |
+| | [`pad_along_first_dim`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L103) | 把 patch 数不等的一批补齐 |
+| | [`Gemma4ImageProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L136) | 快速路径；[`Gemma4ImageProcessorPil`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_pil_gemma4.py#L137) 是 PIL 回退实现 |
 
 ## 源码走读
 

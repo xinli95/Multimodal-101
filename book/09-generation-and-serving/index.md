@@ -17,10 +17,10 @@ Everything so far described a single forward pass. Generation is that forward pa
 
 | Symbol | Role |
 |---|---|
-| `Gemma4ForConditionalGeneration` | `Gemma4Model` + `lm_head` + `GenerationMixin` |
-| `Gemma4ForCausalLM` | The text-only path, for text-only workloads |
-| `Gemma4CausalLMOutputWithPast` | Logits, cache, and the multimodal extras |
-| `GenerationMixin.generate` | Not Gemma-specific — but read it once |
+| [`Gemma4ForConditionalGeneration`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2507) | `Gemma4Model` + `lm_head` + `GenerationMixin` |
+| [`Gemma4ForCausalLM`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1825) | The text-only path, for text-only workloads |
+| [`Gemma4CausalLMOutputWithPast`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L109) | Logits, cache, and the multimodal extras |
+| [`GenerationMixin.generate`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/generation/utils.py#L2274) | Not Gemma-specific — but read it once |
 
 ## Walkthrough
 
