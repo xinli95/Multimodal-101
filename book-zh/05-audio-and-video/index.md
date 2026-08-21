@@ -18,12 +18,12 @@
 
 | 文件 | 符号 | 作用 |
 |---|---|---|
-| `feature_extraction_gemma4.py` | `Gemma4AudioFeatureExtractor` | 波形 → 16kHz 下 128 维 mel 特征 |
-| `video_processing_gemma4.py` | `Gemma4VideoProcessor` | 抽帧与逐帧预处理 |
-| `modeling_gemma4.py` | `Gemma4AudioSubSampleConvProjection` | 4× 时间下采样 |
-| | `Gemma4AudioAttention` | 带左上下文的分块注意力 |
-| | `Gemma4AudioCausalConv1d`、`Gemma4AudioLightConv1d` | Conformer 式积木 |
-| | `Gemma4AudioModel` | 组装好的音频塔与它的 mask 管线 |
+| `feature_extraction_gemma4.py` | [`Gemma4AudioFeatureExtractor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/feature_extraction_gemma4.py#L49) | 波形 → 16kHz 下 128 维 mel 特征 |
+| `video_processing_gemma4.py` | [`Gemma4VideoProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/video_processing_gemma4.py#L158) | 抽帧与逐帧预处理 |
+| `modeling_gemma4.py` | [`Gemma4AudioSubSampleConvProjection`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L385) | 4× 时间下采样 |
+| | [`Gemma4AudioAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L249) | 带左上下文的分块注意力 |
+| | [`Gemma4AudioCausalConv1d`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L451)、[`Gemma4AudioLightConv1d`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L484) | Conformer 式积木 |
+| | [`Gemma4AudioModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1931) | 组装好的音频塔与它的 mask 管线 |
 
 ## 源码走读 —— 音频
 

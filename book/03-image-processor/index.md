@@ -30,12 +30,12 @@ Nine patches (3×3) pool down to one soft token, hence the 9× ratio between the
 
 | File | Symbol | Role |
 |---|---|---|
-| `image_processing_gemma4.py` | `_SUPPORTED_SOFT_TOKENS` | The menu above, as a tuple |
-| | `get_aspect_ratio_preserving_size` | The budget solver: target size from image size + patch budget |
-| | `convert_image_to_patches` | Grid → sequence of patches |
-| | `pad_along_first_dim` | Padding a batch of variable patch counts to a common length |
-| | `Gemma4ImageProcessor` (`TorchvisionBackend`) | The fast path; `Gemma4ImageProcessorPil` is the PIL fallback |
-| `configuration_gemma4.py` | `Gemma4VisionConfig.patch_size`, `.pooling_kernel_size` | Where 16 and 3 come from |
+| `image_processing_gemma4.py` | [`_SUPPORTED_SOFT_TOKENS`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L29) | The menu above, as a tuple |
+| | [`get_aspect_ratio_preserving_size`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L33) | The budget solver: target size from image size + patch budget |
+| | [`convert_image_to_patches`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L88) | Grid → sequence of patches |
+| | [`pad_along_first_dim`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L103) | Padding a batch of variable patch counts to a common length |
+| | [`Gemma4ImageProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_gemma4.py#L136) ([`TorchvisionBackend`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/image_processing_backends.py#L86)) | The fast path; [`Gemma4ImageProcessorPil`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/image_processing_pil_gemma4.py#L137) is the PIL fallback |
+| `configuration_gemma4.py` | [`Gemma4VisionConfig.patch_size`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L267), [`.pooling_kernel_size`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L266) | Where 16 and 3 come from |
 
 ## Walkthrough
 

@@ -13,6 +13,15 @@
 5. 量化选项，以及它对一个挂着视觉塔和音频塔的模型意味着什么
 6. 真正把它跑起来：用 vLLM 起一个 OpenAI 兼容端点并调用它
 
+## 源码地图
+
+| 符号 | 作用 |
+|---|---|
+| [`Gemma4ForConditionalGeneration`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2507) | `Gemma4Model` + `lm_head` + `GenerationMixin` |
+| [`Gemma4ForCausalLM`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1825) | 纯文本负载使用的纯文本路径 |
+| [`Gemma4CausalLMOutputWithPast`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L109) | logits、cache 与多模态附加输出 |
+| [`GenerationMixin.generate`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/generation/utils.py#L2274) | 不属于 Gemma，但值得完整读一次 |
+
 ## 源码走读
 
 ### 1. 三个 `Auto*` 类，一个 checkpoint

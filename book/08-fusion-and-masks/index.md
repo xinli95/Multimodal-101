@@ -21,14 +21,14 @@ Note that this is **not on in every size**. The 31B and 26B-A4B checkpoints set 
 
 | Symbol in `modeling_gemma4.py` | Role |
 |---|---|
-| `Gemma4Model.get_placeholder_mask` | Locating image / video / audio positions |
-| `Gemma4Model.forward` | The `masked_scatter` fusion and the `pad_token_id` rewrite |
-| `create_masks_for_vision_model` | The bidirectional-vision mask |
-| `get_block_sequence_ids_for_mask` | Grouping contiguous multimodal runs into blocks |
-| `sliding_window_mask_function` | Composed with the above for sliding layers (chapter 06) |
-| `Gemma4ModelOutputWithPast`, `Gemma4CausalLMOutputWithPast` | What comes back out |
+| [`Gemma4Model.get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2231) | Locating image / video / audio positions |
+| [`Gemma4Model.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2279) | The `masked_scatter` fusion and the `pad_token_id` rewrite |
+| [`create_masks_for_vision_model`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2112) | The bidirectional-vision mask |
+| [`get_block_sequence_ids_for_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2167) | Grouping contiguous multimodal runs into blocks |
+| [`sliding_window_mask_function`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1915) | Composed with the above for sliding layers (chapter 06) |
+| [`Gemma4ModelOutputWithPast`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L78), [`Gemma4CausalLMOutputWithPast`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L109) | What comes back out |
 
-Config fields: `use_bidirectional_attention` (`"vision"` / `"all"` / unset), `image_token_id`, `audio_token_id`, `video_token_id`.
+Config fields: [`use_bidirectional_attention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L179) (`"vision"` / `"all"` / unset), [`image_token_id`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L335), [`audio_token_id`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L339), [`video_token_id`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L336).
 
 ## Walkthrough
 

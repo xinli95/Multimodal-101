@@ -16,12 +16,12 @@
 
 | 文件 | 符号 | 作用 |
 |---|---|---|
-| `configuration_gemma4.py` | `Gemma4Config` | 顶层：三个子 config + 特殊 token id |
-| | `Gemma4TextConfig` | 解码器：262144 词表、`layer_types`、`sliding_window`、PLE 与 MoE 字段 |
-| | `Gemma4VisionConfig` | 视觉塔：`patch_size=16`、`pooling_kernel_size`、`position_embedding_size=10240` |
-| | `Gemma4AudioConfig` | 音频塔：`attention_chunk_size`、`subsampling_conv_channels`、`output_proj_dims` |
-| `modeling_gemma4.py` | `Gemma4Model.__init__` | config 变成模块的地方 |
-| | `Gemma4PreTrainedModel` | 基类：权重初始化、词表缩放、能力标志位 |
+| `configuration_gemma4.py` | [`Gemma4Config`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L282) | 顶层：三个子 config + 特殊 token id |
+| | [`Gemma4TextConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L87) | 解码器：262144 词表、`layer_types`、`sliding_window`、PLE 与 MoE 字段 |
+| | [`Gemma4VisionConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L226) | 视觉塔：`patch_size=16`、`pooling_kernel_size`、`position_embedding_size=10240` |
+| | [`Gemma4AudioConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L29) | 音频塔：`attention_chunk_size`、`subsampling_conv_channels`、`output_proj_dims` |
+| `modeling_gemma4.py` | [`Gemma4Model.__init__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2189) | config 变成模块的地方 |
+| | [`Gemma4PreTrainedModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1480) | 基类：权重初始化、词表缩放、能力标志位 |
 
 ## 源码走读
 

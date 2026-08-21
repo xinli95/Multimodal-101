@@ -21,12 +21,12 @@
 
 | `modeling_gemma4.py` 中的符号 | 作用 |
 |---|---|
-| `Gemma4VisionPatchEmbedder` | patch 投影 + 学习式 2D 位置表（`_position_embeddings`） |
-| `Gemma4VisionRotaryEmbedding`、`apply_multidimensional_rope` | 2D RoPE：按轴旋转一半 head 维度 |
-| `Gemma4VisionAttention` / `...EncoderLayer` / `...Encoder` | 主干堆叠 |
-| `Gemma4VisionPooler`、`_avg_pool_by_positions` | 由 patch 坐标驱动的 3×3 池化 |
-| `Gemma4MultimodalEmbedder` | 视觉维度 → 文本嵌入空间 |
-| `Gemma4Model.get_image_features` | 一次调用跑完上面全部 |
+| [`Gemma4VisionPatchEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L579) | patch 投影 + 学习式 2D 位置表（`_position_embeddings`） |
+| [`Gemma4VisionRotaryEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L707)、[`apply_multidimensional_rope`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L861) | 2D RoPE：按轴旋转一半 head 维度 |
+| [`Gemma4VisionAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L917) / [`Gemma4VisionEncoderLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L986) / [`Gemma4VisionEncoder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1030) | 主干堆叠 |
+| [`Gemma4VisionPooler`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L624)、[`_avg_pool_by_positions`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L637) | 由 patch 坐标驱动的 3×3 池化 |
+| [`Gemma4MultimodalEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2085) | 视觉维度 → 文本嵌入空间 |
+| [`Gemma4Model.get_image_features`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2212) | 一次调用跑完上面全部 |
 
 ## 源码走读
 

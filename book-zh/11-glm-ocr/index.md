@@ -12,6 +12,21 @@ GLM-OCR 的核心是约 0.9B 参数的视觉—语言生成模型：0.4B CogViT 
 4. 如何区分 base model 错误、layout detector 错误、reading-order 错误和 formatter 错误
 5. 如何分别用编辑距离、CDM、TEDS、field F1、JSON/tag validity 评估不同输出契约
 
+## 源码地图
+
+本章面向已发布的 `zai-org/GLM-OCR` checkpoint，以及与 Part I 相同版本线的 `transformers` 5.14.x 实现。
+
+| 来源 | 符号 / 文件 | 作用 |
+|---|---|---|
+| Hugging Face checkpoint | [`config.json`](https://huggingface.co/zai-org/GLM-OCR/blob/main/config.json)、[`preprocessor_config.json`](https://huggingface.co/zai-org/GLM-OCR/blob/main/preprocessor_config.json) | 已发布权重的真实参数；优先于类默认值 |
+| `configuration_glm_ocr.py` | [`GlmOcrConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/configuration_glm_ocr.py#L132)、[`GlmOcrVisionConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/configuration_glm_ocr.py#L30)、[`GlmOcrTextConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/configuration_glm_ocr.py#L72) | 嵌套架构配置 |
+| `modeling_glm_ocr.py` | [`GlmOcrVisionPatchEmbed`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L517)、[`GlmOcrVisionBlock`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L469) | patchify 与 CogViT encoder |
+| | [`GlmOcrVisionPatchMerger`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L500)、[`GlmOcrVisionModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L537) | 2×2 空间下采样与到文本宽度的 gated projection |
+| | [`GlmOcrModel.get_image_features`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L1008)、[`get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L1028) | 视觉特征提取与占位符替换 |
+| | [`GlmOcrTextModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L708)、[`GlmOcrForConditionalGeneration`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L1202) | decoder 与自回归 LM head |
+| `processing_glm46v.py` / `image_processing_glm46v.py` | [`Glm46VProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm46v/processing_glm46v.py#L43)、[`Glm46VImageProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm46v/image_processing_glm46v.py#L87) | checkpoint 复用的 GLM-V chat 与图像预处理 |
+| GLM-OCR SDK | [`PageLoader`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/dataloader/page_loader.py#L40)、[`PPDocLayoutDetector`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/layout/layout_detector.py#L27)、[`OCRClient`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/ocr_client.py#L24)、[`ResultFormatter`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/postprocess/result_formatter.py#L40) | base model 外围的生产文档 pipeline |
+
 ## Notebooks
 
 notebook 为中英文版共用的英文版本：

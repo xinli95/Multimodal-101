@@ -30,14 +30,14 @@ This chapter targets the released `zai-org/GLM-OCR` checkpoint and the implement
 
 | Source | Symbol / file | Role |
 |---|---|---|
-| Hugging Face checkpoint | `config.json`, `preprocessor_config.json` | The facts about the released weights; prefer these over class defaults |
-| `configuration_glm_ocr.py` | `GlmOcrConfig`, `GlmOcrVisionConfig`, `GlmOcrTextConfig` | Nested architecture configs |
-| `modeling_glm_ocr.py` | `GlmOcrVisionPatchEmbed`, `GlmOcrVisionBlock` | Patchify and CogViT encoder |
-| | `GlmOcrVisionPatchMerger`, `GlmOcrVisionModel` | 2×2 spatial downsample and gated projection into text width |
-| | `GlmOcrModel.get_image_features`, `get_placeholder_mask` | Visual feature extraction and placeholder replacement |
-| | `GlmOcrTextModel`, `GlmOcrForConditionalGeneration` | Decoder and autoregressive LM head |
-| `processing_glm46v.py` / `image_processing_glm46v.py` | `Glm46VProcessor`, `Glm46VImageProcessor` | Shared GLM-V chat and image preprocessing used by this checkpoint |
-| GLM-OCR SDK | `PageLoader`, `PPDocLayoutDetector`, `OCRClient`, `ResultFormatter` | The production document pipeline around the base model |
+| Hugging Face checkpoint | [`config.json`](https://huggingface.co/zai-org/GLM-OCR/blob/main/config.json), [`preprocessor_config.json`](https://huggingface.co/zai-org/GLM-OCR/blob/main/preprocessor_config.json) | The facts about the released weights; prefer these over class defaults |
+| `configuration_glm_ocr.py` | [`GlmOcrConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/configuration_glm_ocr.py#L132), [`GlmOcrVisionConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/configuration_glm_ocr.py#L30), [`GlmOcrTextConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/configuration_glm_ocr.py#L72) | Nested architecture configs |
+| `modeling_glm_ocr.py` | [`GlmOcrVisionPatchEmbed`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L517), [`GlmOcrVisionBlock`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L469) | Patchify and CogViT encoder |
+| | [`GlmOcrVisionPatchMerger`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L500), [`GlmOcrVisionModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L537) | 2×2 spatial downsample and gated projection into text width |
+| | [`GlmOcrModel.get_image_features`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L1008), [`get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L1028) | Visual feature extraction and placeholder replacement |
+| | [`GlmOcrTextModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L708), [`GlmOcrForConditionalGeneration`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py#L1202) | Decoder and autoregressive LM head |
+| `processing_glm46v.py` / `image_processing_glm46v.py` | [`Glm46VProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm46v/processing_glm46v.py#L43), [`Glm46VImageProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm46v/image_processing_glm46v.py#L87) | Shared GLM-V chat and image preprocessing used by this checkpoint |
+| GLM-OCR SDK | [`PageLoader`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/dataloader/page_loader.py#L40), [`PPDocLayoutDetector`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/layout/layout_detector.py#L27), [`OCRClient`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/ocr_client.py#L24), [`ResultFormatter`](https://github.com/zai-org/GLM-OCR/blob/main/glmocr/postprocess/result_formatter.py#L40) | The production document pipeline around the base model |
 
 Two source-reading rules matter here.
 
@@ -314,5 +314,5 @@ GLM-OCR lands in the productive middle. It uses a generative VLM where structure
 - [GLM-OCR checkpoint and model card](https://huggingface.co/zai-org/GLM-OCR)
 - [GLM-OCR technical report](https://arxiv.org/abs/2603.10910)
 - [Official GLM-OCR SDK](https://github.com/zai-org/GLM-OCR)
-- [`transformers` GLM-OCR implementation, v5.14.0](https://github.com/huggingface/transformers/blob/v5.14.0/src/transformers/models/glm_ocr/modeling_glm_ocr.py)
+- [`transformers` GLM-OCR implementation, v5.14.1](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/glm_ocr/modeling_glm_ocr.py)
 - [Official fine-tuning guide](https://github.com/zai-org/GLM-OCR/tree/main/examples/finetune)

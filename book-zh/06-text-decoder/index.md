@@ -19,12 +19,12 @@
 
 | `modeling_gemma4.py` 中的符号 | 作用 |
 |---|---|
-| `Gemma4TextAttention` | GQA + q/k/v RMSNorm、滑窗与全局分支、KV 共享、K=V |
-| `Gemma4TextRotaryEmbedding` | 按层型区分的 RoPE |
-| `sliding_window_mask_function` | 把窗口写成 `(q_idx, kv_idx)` 上的布尔谓词 |
-| `Gemma4TextMLP`、`Gemma4TextDecoderLayer` | 基本块 |
-| `Gemma4TextModel.forward` | 主循环、共享 KV 字典与 mask 构造 |
-| `repeat_kv`、`eager_attention_forward`、`apply_rotary_pos_emb` | 读融合 kernel 之前先读的参考实现 |
+| [`Gemma4TextAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1183) | GQA + q/k/v RMSNorm、滑窗与全局分支、KV 共享、K=V |
+| [`Gemma4TextRotaryEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1093) | 按层型区分的 RoPE |
+| [`sliding_window_mask_function`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1915) | 把窗口写成 `(q_idx, kv_idx)` 上的布尔谓词 |
+| [`Gemma4TextMLP`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1074)、[`Gemma4TextDecoderLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1376) | 基本块 |
+| [`Gemma4TextModel.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1653) | 主循环、共享 KV 字典与 mask 构造 |
+| [`repeat_kv`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L815)、[`eager_attention_forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L827)、[`apply_rotary_pos_emb`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L793) | 读融合 kernel 之前先读的参考实现 |
 
 ## 源码走读
 

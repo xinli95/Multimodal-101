@@ -16,12 +16,12 @@ A `transformers` model is a pure function of its config. `Gemma4Config` is a con
 
 | File | Symbol | Role |
 |---|---|---|
-| `configuration_gemma4.py` | `Gemma4Config` | Top level: `text_config`, `vision_config`, `audio_config` + the special-token IDs |
-| | `Gemma4TextConfig` | The decoder: 262144 vocab, `layer_types`, `sliding_window`, PLE and MoE fields |
-| | `Gemma4VisionConfig` | The vision tower: `patch_size=16`, `pooling_kernel_size`, `position_embedding_size=10240` |
-| | `Gemma4AudioConfig` | The audio tower: `attention_chunk_size`, `subsampling_conv_channels`, `output_proj_dims` |
-| `modeling_gemma4.py` | `Gemma4Model.__init__` | Where the config becomes modules: `vision_tower`, `audio_tower`, `language_model`, `embed_vision`, `embed_audio` |
-| | `Gemma4PreTrainedModel` | The base class: weight init, embedding resizing, the `_can_*` capability flags |
+| `configuration_gemma4.py` | [`Gemma4Config`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L282) | Top level: `text_config`, `vision_config`, `audio_config` + the special-token IDs |
+| | [`Gemma4TextConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L87) | The decoder: 262144 vocab, `layer_types`, `sliding_window`, PLE and MoE fields |
+| | [`Gemma4VisionConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L226) | The vision tower: `patch_size=16`, `pooling_kernel_size`, `position_embedding_size=10240` |
+| | [`Gemma4AudioConfig`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/configuration_gemma4.py#L29) | The audio tower: `attention_chunk_size`, `subsampling_conv_channels`, `output_proj_dims` |
+| `modeling_gemma4.py` | [`Gemma4Model.__init__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2189) | Where the config becomes modules: `vision_tower`, `audio_tower`, `language_model`, `embed_vision`, `embed_audio` |
+| | [`Gemma4PreTrainedModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1480) | The base class: weight init, embedding resizing, the `_can_*` capability flags |
 
 ## Walkthrough
 

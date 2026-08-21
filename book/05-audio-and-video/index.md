@@ -18,13 +18,13 @@ Audio is native to **E2B and E4B only**. The 31B and 26B-A4B checkpoints ship wi
 
 | File | Symbol | Role |
 |---|---|---|
-| `feature_extraction_gemma4.py` | `Gemma4AudioFeatureExtractor` | Waveform → 128-bin mel features at 16kHz |
-| `video_processing_gemma4.py` | `Gemma4VideoProcessor` | Frame sampling (`do_sample_frames`, `num_frames`, `fps`) and per-frame preprocessing |
-| `modeling_gemma4.py` | `Gemma4AudioSubSampleConvProjection` (+ `...Layer`) | The 4× temporal downsample |
-| | `Gemma4AudioAttention` (`_convert_to_block`, `_extract_block_context`, `_rel_shift`) | Chunked attention with left context |
-| | `Gemma4AudioCausalConv1d`, `Gemma4AudioLightConv1d`, `Gemma4AudioFeedForward` | Conformer-style blocks |
-| | `Gemma4AudioRelPositionalEncoding` | Relative position encoding |
-| | `Gemma4AudioModel`, `_convert_4d_mask_to_blocked_5d` | The assembled tower and its mask plumbing |
+| `feature_extraction_gemma4.py` | [`Gemma4AudioFeatureExtractor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/feature_extraction_gemma4.py#L49) | Waveform → 128-bin mel features at 16kHz |
+| `video_processing_gemma4.py` | [`Gemma4VideoProcessor`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/video_processing_gemma4.py#L158) | Frame sampling (`do_sample_frames`, `num_frames`, `fps`) and per-frame preprocessing |
+| `modeling_gemma4.py` | [`Gemma4AudioSubSampleConvProjection`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L385) (+ [`Gemma4AudioSubSampleConvProjectionLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L357)) | The 4× temporal downsample |
+| | [`Gemma4AudioAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L249) ([`_convert_to_block`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L278), [`_extract_block_context`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L286), [`_rel_shift`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L296)) | Chunked attention with left context |
+| | [`Gemma4AudioCausalConv1d`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L451), [`Gemma4AudioLightConv1d`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L484), [`Gemma4AudioFeedForward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L415) | Conformer-style blocks |
+| | [`Gemma4AudioRelPositionalEncoding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L218) | Relative position encoding |
+| | [`Gemma4AudioModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1931), [`_convert_4d_mask_to_blocked_5d`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1955) | The assembled tower and its mask plumbing |
 
 ## Walkthrough — audio
 

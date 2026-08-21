@@ -19,10 +19,10 @@
 
 | `modeling_gemma4.py` 中的符号 | 作用 |
 |---|---|
-| `Gemma4Model.get_placeholder_mask` | 定位图像 / 视频 / 音频位置 |
-| `Gemma4Model.forward` | `masked_scatter` 融合与 `pad_token_id` 改写 |
-| `create_masks_for_vision_model` | 双向视觉 mask |
-| `get_block_sequence_ids_for_mask` | 把连续的多模态段分组成块 |
+| [`Gemma4Model.get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2231) | 定位图像 / 视频 / 音频位置 |
+| [`Gemma4Model.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2279) | `masked_scatter` 融合与 `pad_token_id` 改写 |
+| [`create_masks_for_vision_model`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2112) | 双向视觉 mask |
+| [`get_block_sequence_ids_for_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2167) | 把连续的多模态段分组成块 |
 
 ## 源码走读
 

@@ -25,11 +25,11 @@
 
 | `modeling_gemma4.py` 中的符号 | 作用 |
 |---|---|
-| `Gemma4TextModel.get_per_layer_inputs` | token-identity 那一半 |
-| `Gemma4TextModel.project_per_layer_inputs` | context-aware 那一半、`1/√2` 合并与多模态回退 |
-| `Gemma4TextRouter`、`Gemma4TextExperts` | MoE 路径 |
-| `Gemma4TextDecoderLayer.forward` | 逐层输入真正被消费的地方 |
-| `Gemma4PreTrainedModel._resize_per_layer_embeddings` | 扩词表时第二张表怎么办 |
+| [`Gemma4TextModel.get_per_layer_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1744) | token-identity 那一半 |
+| [`Gemma4TextModel.project_per_layer_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1788) | context-aware 那一半、`1/√2` 合并与多模态回退 |
+| [`Gemma4TextRouter`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1339)、[`Gemma4TextExperts`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1300) | MoE 路径 |
+| [`Gemma4TextDecoderLayer.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1405) | 逐层输入真正被消费的地方 |
+| [`Gemma4PreTrainedModel._resize_per_layer_embeddings`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1573) | 扩词表时第二张表怎么办 |
 
 ## 源码走读 —— PLE
 
