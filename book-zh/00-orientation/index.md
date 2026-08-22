@@ -24,9 +24,91 @@
 1. Gemma 4 家族到底有什么——尺寸、模态、上下文长度，以及哪些能力和尺寸相关
 2. 多模态理解从哪来，一页讲完（CLIP → BLIP-2 → LLaVA → 今天）
 3. 配好能跑通 Part I 的环境
-4. 端到端跑一次 Gemma 4，打印它的模块树，把树上每个分支对应到本书的某一章
+4. 先建立高层 mental model，再端到端跑一次 Gemma 4，把模块树的实现细节挂回这张总图
 
-## 全书要拆的那条数据流
+## Mental model：三个学习出来的模块
+
+先把 class 名字都放下。对一张图像，大多数 VLM 都可以压缩成三个学习出来的模块：
+
+```text
+                         每一步在决定什么？
+
+图像
+  │
+  ├─ processor ───► 这张图值得花多少视觉计算？
+  │                 （resize、patch 网格、token 预算；这里还不理解语义）
+  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  1. VISION TOWER                                                │
+│     局部 patch embeddings ──► 带上下文的视觉 features            │
+│     「图里有什么，各区域之间是什么关系？」                        │
+└──────────────────────────────────────────────────────────────────┘
+  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  2. CONNECTOR / COMPRESSOR                                      │
+│     大量 vision-width features ──► 较少的 LLM-width soft tokens  │
+│     「有多少视觉信息、以什么表示进入语言模型？」                   │
+└──────────────────────────────────────────────────────────────────┘
+  ▼
+视觉 tokens ────────────────┐
+                            ├─► 一条 token 序列 ─► 3. LLM ─► 文本
+文本 ─► tokenizer ──────────┘                      推理 + 生成
+```
+
+脑子里先只留这一句：
+
+> **模态 tower 理解自己的输入；connector 把表示压缩并翻译到 LLM 的 token 空间；LLM 在一条混合序列上推理。**
+
+音频也是同一结构，只是换成 audio tower。视频则是帧走视觉路径，再加时间信息。Processor 与 fusion 很重要，但它们是三个学习模块外围的 plumbing：processor 在 tower 之前分配视觉计算，fusion 决定 soft tokens 在共享序列里放在哪里。
+
+### 跟着一张图走：五次表示变化
+
+只要追踪每个边界上「什么变了、什么没变」，三个模块就会变得具体。令 `B` 为最终视觉 token 预算，`D_v` 为视觉宽度，`D_text` 为 LLM 宽度。
+
+| 阶段 | 表示 | 这一阶段的工作 | 本书在哪放大 |
+|---|---|---|---|
+| 1. 分配分辨率 | `H×W×3` pixels → resize 后的 pixels + patch 坐标 | 尽量保留长宽比，同时把预算花完；Gemma 4 因为后面 3×3 patches 合成一个 token，所以最多允许约 `9B` 个 patches | ch03 |
+| 2. Patch embed | 局部 `16×16×3` pixels → `N×D_v` patch embeddings | 把局部像素块变成向量，并加入空间位置 | ch04 |
+| 3. Vision encode | `N×D_v` → `N×D_v` contextual features | 让每个 patch representation 看见整张图的上下文；ViT 首先是**编码器**，不是负责减 token 的模块 | ch04 |
+| 4. 压缩 + 对齐 | `N×D_v` → 约 `B×D_text` soft tokens | 3×3 spatial pooling 减少序列长度；projection 把视觉表示宽度改成 LLM embedding 宽度 | ch04 |
+| 5. 融合 + 推理 | `B` 个视觉 tokens + `T` 个文本 tokens → 一条 `(B+T)×D_text` 序列 | 把两个模态放进同一序列、构造 mask，再由文本 decoder 产生 logits | ch08 → ch06/07 → ch09 |
+
+这个拆法能避免三个最常见的混淆：
+
+- **Patch vector 还不是带上下文的 visual token。** 它还要经过 projection、位置编码和 vision encoder。
+- **ViT 的主要工作不是减少 token 数。** Gemma 4 是在 ViT 之后由 pooler 做压缩。
+- **Pooling 和 projection 解决不同问题。** Pooling 改变序列长度；projection 改变 feature width。
+
+### 十一章，其实只有四个问题
+
+章节边界只是实现层面的放大镜，不是十一件互不相关的知识。站在最高层，Part I 只问四个问题：
+
+| 大问题 | 章节 | 第一遍应该留下什么 |
+|---|---|---|
+| 模型里应该有哪些组件？ | 01 | Config 是 towers、connector 与 decoder 的蓝图 |
+| 各种输入怎样变成 LLM 空间里的 token？ | 02–05、08 | preprocess → encode → compress/align → 放进同一序列 |
+| 所有东西成为一条序列后发生什么？ | 06–07 | Attention 与 feed-forward layers 改写同一条 residual stream |
+| 怎样使用或改变这个模型？ | 09–11 | 生成、微调、部署，并把同一套读法迁移到另一个系统 |
+
+第一遍先学会上面四行；需要打开某个方框时，再进入对应细章。
+
+### 阅读任何 VLM 都能复用的五个问题
+
+以后碰到 LLaVA、Qwen-VL、InternVL 或别的模型，不要先背 class tree。连续问：
+
+1. **Vision tower 属于什么 family？** CLIP/SigLIP 风格 ViT、InternViT，还是 custom ViT？
+2. **它怎样初始化？** 来自独立预训练 checkpoint，还是专门为这个多模态模型训练？
+3. **多模态训练时 frozen 还是继续更新？** Pretrained 与 frozen 是两件事。
+4. **怎样分配 resolution？** 固定 resize、tiling、native/dynamic resolution，还是明确的 token budget？
+5. **Tower features 怎样变成 LLM tokens？** Pooling、pixel shuffle、learned merger、resampler、Q-Former，还是 projector？
+
+这五个答案在你读实现之前，就已经解释了一个 VLM 大半的视觉架构。尤其要分清：
+
+> **ViT 回答 neural-network architecture 是什么；CLIP/SigLIP 回答视觉—语言表示可能怎样预训练；VLM training 回答视觉系统和 LLM 怎样连接、哪些部分继续更新。这是三层不同的问题。**
+
+## 实现地图：现在再放大
+
+只有 mental model 稳定以后，下面这张 class-level 地图才真正有用。Part I 的每一章都是这条流水线中的一个局部：
 
 ```
   messages ──► chat template ──► tokenizer ──► input_ids                       ch02

@@ -2,6 +2,8 @@
 
 **在数据流中的位置**：`pixel_values ──► Gemma4VisionModel ──► pooler ──► Gemma4MultimodalEmbedder ──► soft tokens`
 
+**Mental-model checkpoint：**本章打开 00 章三个学习模块中的两个：**vision tower** 给 patch embeddings 加入图像上下文，随后 **connector** 压缩 token 数量并投影 feature width。Gemma 4 虽然把它们放在一条很短的路径里，但要始终把这两个工作分开理解。
+
 图像在这一章真正变成语言模型读得懂的东西。四个阶段，每个都有值得琢磨的设计决策：
 
 1. **Patch embedder** — 每个 16×16 patch 做线性投影，再加上按 `(x, y)` 坐标查表得到的**学习式** 2D 位置嵌入（每轴 10,240 个槽位）

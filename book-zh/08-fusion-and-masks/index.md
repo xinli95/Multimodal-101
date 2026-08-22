@@ -2,6 +2,8 @@
 
 **在数据流中的位置**：塔与解码器之间——四个模态汇成一条序列的唯一那个点。
 
+**Mental-model checkpoint：**fusion 不是另一个 encoder 或 connector。走到这里，每个模态都已经完成理解、压缩并投影到 `D_text`；fusion 只负责把这些向量放进同一条序列，并规定谁可以看谁。
+
 这是前半本书一直在铺垫的一章，而它比你想象的要小。04、05 两章产出的 soft token 已经在文本嵌入空间里了；02 章埋下的占位符段已经躺在 `input_ids` 里了。融合就是：找到占位符，把 soft token 覆盖上去，然后修好注意力 mask 让模型正确对待结果。
 
 有意思的是 mask。句子是因果的——第 n 个 token 不能看见第 n+1 个。但图像不是序列，左上角的 patch 没有任何理由不许看右下角。于是 Gemma 4 支持 `use_bidirectional_attention="vision"`：**视觉 token 在自己的块内双向注意力，文本仍然因果。** 生成的 4D mask 有非常独特的形状，把它画成热力图，胜过任何文字描述。

@@ -2,6 +2,8 @@
 
 **Position in the pipeline**: `pixel_values ──► Gemma4VisionModel ──► pooler ──► Gemma4MultimodalEmbedder ──► soft tokens`
 
+**Mental-model checkpoint:** this chapter opens two of the three learned boxes from chapter 00: the **vision tower** contextualises patch embeddings, then the **connector** compresses their count and projects their width. Keep those two jobs separate even though Gemma 4 implements them in one short path.
+
 This is the chapter where an image becomes something the language model can read. Four stages, each with a design decision worth understanding:
 
 1. **Patch embedder** — linear projection of each 16×16 patch, plus a *learned* 2D position embedding looked up by `(x, y)` coordinates from a table with 10,240 slots per axis

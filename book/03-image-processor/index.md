@@ -2,6 +2,8 @@
 
 **Position in the pipeline**: `image ──► Gemma4ImageProcessor ──► pixel_values + image_position_ids`
 
+**Mental-model checkpoint:** this chapter covers the *compute-allocation and geometry* step before the learned vision tower. The processor decides how densely the model will sample the image; it does not yet decide what the image means.
+
 Every vision-language model has to answer one question: an image is a 2D grid of arbitrary size, a transformer wants a 1D sequence of bounded length — how do you convert? The answers the field has tried are the whole history of VLM image handling: squash everything to 224×224 (CLIP, lossy for anything text-shaped), tile a big image into fixed crops (InternVL), keep native resolution and let the sequence grow (Qwen2-VL, expensive and unpredictable).
 
 Gemma 4's answer is a **pixel budget**: keep the aspect ratio, scale the image so its total pixel count fits a budget, and force both sides to be divisible by 48. The number of vision tokens is then fixed and known in advance — you choose it from a menu.

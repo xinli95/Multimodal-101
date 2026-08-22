@@ -2,6 +2,8 @@
 
 **在数据流中的位置**：`image ──► Gemma4ImageProcessor ──► pixel_values + image_position_ids`
 
+**Mental-model checkpoint：**本章只讲 learned vision tower 之前的「计算分配与几何」步骤。Processor 决定模型用多密的采样去看这张图；它还没有在判断图像表达什么。
+
 每个视觉语言模型都要回答同一个问题：图像是任意尺寸的二维网格，Transformer 要的是长度有界的一维序列，怎么转？领域里试过的答案就是 VLM 图像处理的全部历史：全部压成 224×224（CLIP，对带文字的东西损失惨重）、把大图切成固定 crop（InternVL）、保持原生分辨率让序列自由生长（Qwen2-VL，昂贵且不可预测）。
 
 Gemma 4 的答案是**像素预算**：保持长宽比，把图缩放到总像素数落进预算内，并强制两边都能被 48 整除。于是视觉 token 数固定且事先已知——你从一张菜单上挑。
