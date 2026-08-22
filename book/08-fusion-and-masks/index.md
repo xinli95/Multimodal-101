@@ -2,6 +2,8 @@
 
 **Position in the pipeline**: between the towers and the decoder — the single point where four modalities become one sequence.
 
+**Mental-model checkpoint:** fusion is not another encoder or connector. By this point every modality has already been understood, compressed, and projected to `D_text`; fusion only places those vectors into one sequence and specifies who may attend to whom.
+
 This is the chapter the whole first half has been building toward, and it is smaller than you expect. The soft tokens from chapters 04 and 05 are already in the text embedding space. The placeholder runs from chapter 02 are already sitting in `input_ids`. Fusion is: find the placeholders, scatter the soft tokens over them, and then fix the attention mask so the model treats the result correctly.
 
 The mask is the interesting part. A sentence is causal — token *n* may not see token *n+1*. But an image is not a sequence; there is no reason the top-left patch should be forbidden from seeing the bottom-right one. So Gemma 4 supports `use_bidirectional_attention="vision"`: **vision tokens attend bidirectionally within their block, while text stays causal.** The resulting 4D mask has a very particular shape, and looking at it as a heatmap is worth more than any amount of description.

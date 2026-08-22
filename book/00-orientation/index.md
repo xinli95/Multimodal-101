@@ -24,11 +24,91 @@ A fair objection: learning one model teaches you one model. That is why every ch
 1. What the Gemma 4 family actually contains — sizes, modalities, context lengths, and which capabilities are size-dependent
 2. Where multimodal understanding came from, in one page (CLIP → BLIP-2 → LLaVA → today), so the rest of the book has a lineage to hang on
 3. How to set up an environment that can run everything in Part I
-4. Run Gemma 4 end to end once, print its module tree, and map every branch of that tree to a chapter of this book
+4. Build a high-level mental model first; then run Gemma 4, print its module tree, and map implementation details onto that model
 
-## The map: the dataflow we are going to take apart
+## The mental model: three learned blocks
 
-Everything in Part I is one stage of this pipeline. Keep this diagram; every chapter marks its position on it.
+Forget the class names for a moment. For an image, most VLMs can be understood as three learned blocks:
+
+```text
+                    What does each stage decide?
+
+image
+  │
+  ├─ processor ───► How much visual compute should this image receive?
+  │                 (resize, patch grid, token budget; no semantic understanding)
+  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  1. VISION TOWER                                                │
+│     local patch embeddings ──► contextual visual features       │
+│     "What is in the image, and how do its regions relate?"      │
+└──────────────────────────────────────────────────────────────────┘
+  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  2. CONNECTOR / COMPRESSOR                                      │
+│     many vision-width features ──► fewer LLM-width soft tokens   │
+│     "How much visual information enters the language model?"    │
+└──────────────────────────────────────────────────────────────────┘
+  ▼
+visual tokens ──────────────┐
+                            ├─► one token sequence ─► 3. LLM ─► text
+text ─► tokenizer ──────────┘                       reason + generate
+```
+
+That is the architecture-level model to keep in your head:
+
+> **A modality tower understands its own input; a connector compresses and translates that representation into the LLM's token space; the LLM reasons over one mixed sequence.**
+
+Audio follows the same pattern with an audio tower. Video is frames through the vision path plus temporal metadata. The processor and fusion code matter, but they are plumbing around these three learned blocks: the processor allocates visual compute before the tower, and fusion decides where the resulting soft tokens sit in the shared sequence.
+
+### Follow one image: five transformations
+
+The three-block picture becomes concrete if you track what changes, and what does *not* change, at each boundary. Let `B` be the requested final visual-token budget, `D_v` the vision width, and `D_text` the LLM width.
+
+| Stage | Representation | The job | Where this book zooms in |
+|---|---|---|---|
+| 1. Allocate resolution | `H×W×3` pixels → resized pixels + patch coordinates | Spend the budget while preserving aspect ratio; in Gemma 4, allow up to roughly `9B` patches because 3×3 patches later become one token | ch03 |
+| 2. Patch embed | local `16×16×3` pixels → `N×D_v` patch embeddings | Turn local pixel blocks into vectors and attach spatial position | ch04 |
+| 3. Vision encode | `N×D_v` → `N×D_v` contextual features | Let every patch representation incorporate image context; the ViT is primarily an **encoder**, not the token compressor | ch04 |
+| 4. Compress + align | `N×D_v` → about `B×D_text` soft tokens | 3×3 spatial pooling reduces sequence length; a projection changes representation width into the LLM embedding space | ch04 |
+| 5. Fuse + reason | `B` visual tokens + `T` text tokens → one `(B+T)×D_text` sequence | Place both modalities in one sequence, build the mask, and let the text decoder produce logits | ch08 → ch06/07 → ch09 |
+
+This separation prevents three common confusions:
+
+- **Patch vector is not yet a contextual visual token.** It must be projected, positioned, and encoded.
+- **The ViT does not mainly reduce token count.** In Gemma 4, the pooler performs that compression after the ViT.
+- **Pooling and projection solve different problems.** Pooling changes sequence length; projection changes feature width.
+
+### Eleven chapters, four questions
+
+The chapter boundaries are implementation zoom levels, not eleven unrelated ideas. At the highest level, Part I asks only four questions:
+
+| Big question | Chapters | What to retain on a first pass |
+|---|---|---|
+| What components should exist? | 01 | The config is the blueprint for towers, connector, and decoder |
+| How does each input become an LLM-space token? | 02–05, 08 | Preprocess → encode → compress/align → place in one sequence |
+| What happens once everything is one sequence? | 06–07 | Attention and feed-forward layers transform a shared residual stream |
+| How do we use or change the model? | 09–11 | Generate, fine-tune, serve, and apply the same reading method to another system |
+
+On a first read, learn the rows above. Use the individual chapters when you need to open a box and understand its mechanism.
+
+### A five-question template for any VLM
+
+When you meet LLaVA, Qwen-VL, InternVL, or another model, do not start by memorising its class tree. Ask:
+
+1. **What is the vision tower family?** A CLIP/SigLIP-style ViT, InternViT, or a custom ViT?
+2. **How was it initialised?** From an independently pretrained checkpoint, or trained for this multimodal model?
+3. **Does multimodal training freeze or update it?** Pretrained and frozen are different claims.
+4. **How is resolution allocated?** Fixed resize, tiling, native/dynamic resolution, or an explicit token budget?
+5. **How do tower features become LLM tokens?** Pooling, pixel shuffle, learned merger, resampler, Q-Former, or a projector?
+
+Those five answers explain most of a VLM's vision architecture before you read a single implementation detail. In particular:
+
+> **ViT is the neural-network architecture; CLIP/SigLIP describes how a vision-language representation may be pretrained; VLM training describes how the vision system and LLM are connected and updated. These are three different layers of the story.**
+
+## The implementation map: now zoom in
+
+Only after the mental model is stable is the detailed class-level map useful. Everything in Part I is one stage of this pipeline; every chapter marks its position on it.
 
 ```
   messages ──► chat template ──► tokenizer ──► input_ids                       ch02
