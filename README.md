@@ -34,7 +34,7 @@ Built with the [TeachBooks](https://teachbooks.io) template, same as [AI-101](ht
 |---|---|
 | [20 · Image Generation and Editing](book/20-image-generation/overview.md) | Diffusion → DiT → Flow Matching; instruction editing |
 | [21 · Video Generation](book/21-video-generation/overview.md) | Video DiT, temporal attention, causal VAE |
-| [22 · Audio Generation](book/22-audio-generation/overview.md) | Codec tokens, TTS as a language model |
+| [22 · Audio Generation](book/22-audio-generation/index.md) | Waveforms, codecs, RVQ, codec LMs, flow matching, and Higgs TTS 3 |
 | [23 · Unified and Omni Models](book/23-unified-omni/overview.md) | Understanding *and* generation in one model |
 | [24 · Applications and Evaluation](book/24-applications/overview.md) | Multimodal RAG, agents, benchmarks |
 

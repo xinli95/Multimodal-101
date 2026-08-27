@@ -70,13 +70,9 @@ parts:
           - file: 21-video-generation/theory.md
           - file: 21-video-generation/landscape.md
           - file: 21-video-generation/notebooks/README.md
-      - file: 22-audio-generation/overview.md
+      - file: 22-audio-generation/index.md
         sections:
-          - file: 22-audio-generation/theory.md
-          - file: 22-audio-generation/landscape.md
-          - file: 22-audio-generation/notebooks/README.md
-            sections:
-              - file: 22-audio-generation/notebooks/01_kokoro_tts.ipynb
+          - file: 22-audio-generation/notebooks/01_kokoro_tts.ipynb
       - file: 23-unified-omni/overview.md
         sections:
           - file: 23-unified-omni/theory.md

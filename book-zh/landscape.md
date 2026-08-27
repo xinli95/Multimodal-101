@@ -2,7 +2,7 @@
 
 > **Last verified: 2026-08-02** — 超过 6 个月请重新核实。
 
-Part I 深挖一个模型，这一页是它的配重：Gemma 4 在所有"会读图、读文档、读视频、读音频"的模型里处于什么位置。生成侧有各自的格局页（[20](20-image-generation/landscape.md)、[21](21-video-generation/landscape.md)、[22](22-audio-generation/landscape.md)、[23](23-unified-omni/landscape.md)）。
+Part I 深挖一个模型，这一页是它的配重：Gemma 4 在所有"会读图、读文档、读视频、读音频"的模型里处于什么位置。生成侧在 Part II 展开（[20](20-image-generation/landscape.md)、[21](21-video-generation/landscape.md)、[22](22-audio-generation/index.md)、[23](23-unified-omni/landscape.md)）。
 
 ## 几乎所有模型底下的那几个视觉编码器
 

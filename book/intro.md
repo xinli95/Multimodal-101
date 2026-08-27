@@ -43,7 +43,7 @@ Gemma 4 earns this role because one open checkpoint family contains almost every
 |---|---|---|---|
 | [20 · Image Generation and Editing](20-image-generation/overview.md) | Text → image, and instruction editing | Diffusion → DiT → Flow Matching; in-context conditioning | FLUX.2 [klein], Qwen-Image-Edit / GPT Image 2, Nano Banana |
 | [21 · Video Generation](21-video-generation/overview.md) | Text/image → video | Video DiT, temporal attention, causal VAE | Wan 2.2, HunyuanVideo 1.5 / Veo 3.1 |
-| [22 · Audio Generation](22-audio-generation/overview.md) | Text → speech | Codec tokens, TTS as a language model | Kokoro, Higgs Audio v3 / closed TTS |
+| [22 · Audio Generation](22-audio-generation/index.md) | Text → speech | Waveforms → codecs / flow matching → speech | Kokoro, F5-TTS, Higgs TTS 3 |
 | [23 · Unified and Omni Models](23-unified-omni/overview.md) | Understanding *and* generation in one model | Architectures that unify both directions | BAGEL, InternVL-U, Qwen3.5-Omni |
 | [24 · Applications and Evaluation](24-applications/overview.md) | Multimodal RAG, agents, benchmarks | Retrieval over documents, judging, routing | Everything above, combined |
 

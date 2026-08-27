@@ -2,7 +2,7 @@
 
 > **Last verified: 2026-08-02** — re-check if this is more than 6 months old.
 
-Part I studies one model in depth. This page is the counterweight: where Gemma 4 sits among everything else that reads images, documents, video and audio. The generation side has its own landscape pages in Part II ([20](20-image-generation/landscape.md), [21](21-video-generation/landscape.md), [22](22-audio-generation/landscape.md), [23](23-unified-omni/landscape.md)).
+Part I studies one model in depth. This page is the counterweight: where Gemma 4 sits among everything else that reads images, documents, video and audio. The generation side is covered in Part II ([20](20-image-generation/landscape.md), [21](21-video-generation/landscape.md), [22](22-audio-generation/index.md), [23](23-unified-omni/landscape.md)).
 
 ## The vision encoders underneath almost everything
 

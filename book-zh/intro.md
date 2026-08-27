@@ -43,7 +43,7 @@ Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎
 |---|---|---|---|
 | [20 · 图像生成与编辑](20-image-generation/overview.md) | 文生图与指令编辑 | Diffusion → DiT → Flow Matching；in-context 条件 | FLUX.2 [klein]、Qwen-Image-Edit / GPT Image 2、Nano Banana |
 | [21 · 视频生成](21-video-generation/overview.md) | 文/图生视频 | Video DiT、时序注意力、Causal VAE | Wan 2.2、HunyuanVideo 1.5 / Veo 3.1 |
-| [22 · 语音与音频生成](22-audio-generation/overview.md) | 文本转语音 | Codec token、TTS 即语言模型 | Kokoro、Higgs Audio v3 / 闭源 TTS |
+| [22 · 语音与音频生成](22-audio-generation/index.md) | 文本转语音 | 波形 → codec / flow matching → 语音 | Kokoro、F5-TTS、Higgs TTS 3 |
 | [23 · 统一与 Omni 模型](23-unified-omni/overview.md) | 理解**与**生成同在一个模型 | 统一双向的架构 | BAGEL、InternVL-U、Qwen3.5-Omni |
 | [24 · 应用与评测](24-applications/overview.md) | 多模态 RAG、Agent、Benchmark | 文档检索、评判、路由 | 综合运用前面各章 |
 
