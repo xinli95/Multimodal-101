@@ -1,5 +1,7 @@
 # 理论大纲 · 图像生成
 
+本页保留整章的概念地图。源码级主线见 [FLUX.2 Klein 4B Deep Dive](flux2-klein-deep-dive.md)：它从 Diffusers `pipeline.__call__()` 出发，逐个对齐 VAE、$z_t$、条件速度场、Euler 更新、Qwen3 条件、5 层 double-stream 与 20 层 single-stream Transformer，以及生成/编辑共用的 reference-token 路径。
+
 ## 1. 现代文生图的标准三件套
 
 1. **VAE**：像素 ↔ 潜空间（8x/16x 下采样），生成发生在潜空间

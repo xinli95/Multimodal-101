@@ -1,5 +1,7 @@
 # Theory · Image Generation
 
+This page keeps the chapter-level concept map. For the source-level path, read [FLUX.2 Klein 4B Deep Dive](flux2-klein-deep-dive.md), which aligns Diffusers `pipeline.__call__()` with the VAE, $z_t$, the conditional velocity field, Euler updates, Qwen3 conditioning, the 5 double-stream and 20 single-stream blocks, and the shared generation/editing reference-token path.
+
 ## 1. The standard three-piece kit
 
 1. **VAE**: pixels ↔ latent space (8x/16x downsampling); generation happens in latent space

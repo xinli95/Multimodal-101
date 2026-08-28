@@ -61,6 +61,7 @@ parts:
       - file: 20-image-generation/overview.md
         sections:
           - file: 20-image-generation/theory.md
+          - file: 20-image-generation/flux2-klein-deep-dive.md
           - file: 20-image-generation/landscape.md
           - file: 20-image-generation/notebooks/README.md
             sections:

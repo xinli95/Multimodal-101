@@ -15,5 +15,6 @@
 ## 内容
 
 - [theory.md](theory.md) — 原理与关键论文（§1–5 生成，§6–9 编辑）
+- [flux2-klein-deep-dive.md](flux2-klein-deep-dive.md) — 沿 Diffusers 源码逐层拆解 FLUX.2 [klein] 4B
 - [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
 - [notebooks](notebooks/README.md) — 实践代码

@@ -15,5 +15,6 @@ Generation and editing were separate chapters until FLUX.2 and Qwen-Image-Edit m
 ## Contents
 
 - [theory.md](theory.md) — principles and key papers (§1–5 generation, §6–9 editing)
+- [flux2-klein-deep-dive.md](flux2-klein-deep-dive.md) — FLUX.2 [klein] 4B, layer by layer through Diffusers source
 - [landscape.md](landscape.md) — current state of play (with last-verified date)
 - [notebooks](notebooks/README.md) — hands-on code
