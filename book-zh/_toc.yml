@@ -33,6 +33,7 @@ parts:
       - file: 21-video-generation/overview.md
         sections:
           - file: 21-video-generation/theory.md
+          - file: 21-video-generation/wan2.2-deep-dive.md
           - file: 21-video-generation/landscape.md
           - file: 21-video-generation/notebooks/README.md
       - file: 22-audio-generation/index.md

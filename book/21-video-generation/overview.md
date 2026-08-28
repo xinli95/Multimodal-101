@@ -16,5 +16,6 @@ The vocabulary still transfers. A video DiT patchifies its latent the way [chapt
 ## Contents
 
 - [theory.md](theory.md) — principles and key papers
+- [wan2.2-deep-dive.md](wan2.2-deep-dive.md) — a source-guided, step-by-step dissection of Wan 2.2
 - [landscape.md](landscape.md) — current state of play (with last-verified date)
 - [notebooks](notebooks/README.md) — hands-on code

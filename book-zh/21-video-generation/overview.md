@@ -16,5 +16,6 @@
 ## 内容
 
 - [theory.md](theory.md) — 原理与关键论文
+- [wan2.2-deep-dive.md](wan2.2-deep-dive.md) — 沿真实源码逐步拆解 Wan2.2
 - [landscape.md](landscape.md) — 当前格局（含 last-verified 日期）
 - [notebooks](notebooks/README.md) — 实践代码
