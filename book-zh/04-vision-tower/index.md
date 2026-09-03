@@ -1,248 +1,286 @@
 # 04 · Vision Tower — 从 patch 到 soft token
 
-**在数据流中的位置**：`pixel_values ──► Gemma4VisionModel ──► pooler ──► Gemma4MultimodalEmbedder ──► soft tokens`
+03 章停在把图像变成 patch 向量和坐标的位置。这些数值仍然只描述一块块局部颜色。本章继续问：**Gemma 4 如何把局部 patch 向量变成带有上下文的视觉特征，再让它们拥有语言模型所需的 embedding width？**
 
-**Mental-model checkpoint：**本章打开 00 章三个学习模块中的两个：**vision tower** 给 patch embeddings 加入图像上下文，随后 **connector** 压缩 token 数量并投影 feature width。Gemma 4 虽然把它们放在一条很短的路径里，但要始终把这两个工作分开理解。
+```text
+03 章：image processor
+pixel_values + image_position_ids
+              │
+              ▼
+┌──────────────────────────────────────────────┐
+│ Gemma4VisionModel                           │
+│                                              │
+│ patch embedder → vision encoder → 3×3 pooler │
+└──────────────────────────────────────────────┘
+              │ 带上下文的视觉特征
+              ▼
+Gemma4MultimodalEmbedder
+RMSNorm → 线性投影到 text width
+              │
+              ▼
+语言模型可以接收的 visual embeddings
+              │
+              ▼
+08 章：把它们放入 prompt 中预留的位置
+```
 
-图像在这一章真正变成语言模型读得懂的东西。四个阶段，每个都有值得琢磨的设计决策：
-
-1. **Patch embedder** — 每个 16×16 patch 做线性投影，再加上按 `(x, y)` 坐标查表得到的**学习式** 2D 位置嵌入（每轴 10,240 个槽位）
-2. **Encoder** — 16 层 Transformer，用 **2D RoPE**：一半 head 维度按 x 坐标旋转，另一半按 y。"猫在狗左边"能被表示，靠的就是它
-3. **Pooler** — **按位置**对 3×3 邻域做平均池化，把 2,520 个 patch 压成 280 个 soft token
-4. **Multimodal embedder** — 从视觉隐藏维度投影到文本嵌入空间，于是结果可以像普通 embedding 一样塞进 token 序列
+**Vision tower** 是 `Gemma4VisionModel`：patch embedder、Transformer encoder 和 pooler。**Connector** 是紧随其后的 `Gemma4MultimodalEmbedder`：一个 RMSNorm 加一个 learned linear projector。先把这条边界划清，整个架构会好懂很多。
 
 ## 你会学到
 
-1. 网格为什么需要两套位置信号（学习式绝对表 + 旋转式相对编码），各自买到了什么
-2. 2D RoPE 如何靠切分 head 维度实现——以及怎么用十五行代码自己写一个
-3. 按位置而非按序列下标池化，为什么能扛住可变长宽比与 padding
-4. 投影进文本空间发生在哪个模块，以及它为什么是 LLaVA MLP projector 的直系后代
-5. **设计空间**：LLaVA 的 MLP vs BLIP-2 的 Q-Former vs Flamingo 的 cross-attention vs Qwen-VL 的 M-RoPE + 原生分辨率 vs InternVL 的 tiling
+1. `pixel_values` 的一行在进入模型前究竟是什么
+2. patch embedding 和 vision encoder 如何把局部像素变成带上下文的特征
+3. 图像 patch 为什么需要位置信息——用「绝对地址」与「相对几何」理解
+4. Gemma 4 为什么等 encoder 做完以后，才对 3×3 patch 分组做 pooling
+5. `Gemma4MultimodalEmbedder` 如何把视觉特征投影到 text embedding space
+6. 这套 connector 与 LLaVA projector、BLIP-2 Q-Former、Flamingo cross-attention 有什么区别
+
+## 先跟一张图走完整条路径
+
+先用一个贯穿全章的例子建立直觉，再读实现。在默认的 280-token 档位，03 章会把一张 640×480 图像 resize 成 912×672。它包含 57×42 的 patch 网格，也就是 2,394 个真实 patch。Processor 再把它 pad 到 2,520 行，让这个档位的所有图像拥有相同的输入形状。
+
+对 E2B 模型，各阶段形状如下：
+
+| 阶段 | 这张图的形状 | 发生了什么变化？ |
+|---|---:|---|
+| image processor 输出 | `[1, 2520, 768]` | 2,394 个真实 16×16 RGB patch，加上 126 个全零 padding 行 |
+| patch embedder | `[1, 2520, 768]` | 每个 raw patch 变成 learned vision feature；在 E2B 上宽度恰好仍是 768 |
+| 16 层 vision encoder | `[1, 2520, 768]` | 形状不变，但每个真实 patch 已经包含来自其他 patch 的上下文 |
+| 3×3 pooler | `[1, 280, 768]` | 每 9 个相邻 patch feature 平均成一个候选 soft token |
+| 移除池化后的 padding | `[266, 768]` | 只保留真实的 19×14 pooled grid |
+| multimodal embedder | `[266, 1536]` | token 数仍为 266；feature width 从 vision width 变成 text width |
+
+这张表就是全章的缩影：encoder 改变每一行的**含义**，pooler 改变**行数**，connector 改变每一行的**宽度**。
+
+### 2,520 行到底是什么？
+
+`2,520 = 280 × 3²`，是默认档位在 pooling 之前允许的最大 patch 数，并不是每张图都有 2,520 个真实 patch。在这个例子里：
+
+- 第 0–2,393 行包含真实 patch 像素；
+- 第 2,394–2,519 行是全零 padding；
+- 对应的 `image_position_ids` 给第一组写入真实 `(x, y)` 坐标，给 padding 组写入 `(-1, -1)`。
+
+Vision tower 会把「坐标是否等于 `(-1, -1)`」转换成 Boolean padding mask。Encoder 用它避免真实 patch attend 到 padding，pooler 用它避免全零行变成 visual token。所以 position tensor 在这里提供的是两个朴素的信息：真实 patch 来自哪里，以及某一行是不是 padding。
+
+## 按顺序理解架构
+
+### 1. Patch embedder：像素变成模型特征
+
+Processor 输出的每一行都是一个摊平的 16×16 RGB 方块：
+
+```text
+16 × 16 × 3 = 768 个像素值
+```
+
+Patch embedder 做三件事：
+
+```python
+pixel_values = 2 * (pixel_values - 0.5)       # [0, 1] → [-1, 1]
+hidden_states = self.input_proj(pixel_values) # raw patch → vision hidden width
+hidden_states = hidden_states + position_embeddings
+```
+
+#### `[0, 1] → [-1, 1]` 算不算 normalization？
+
+按普通数学语言来说，算：它是一次固定的 affine rescaling 和 centring。容易混淆的是 Transformers API 的命名。03 章说 `do_normalize=False`，意思是 **image processor** 没有做常见的逐 channel `(x - image_mean) / image_std`；它只把字节值除以 255。随后模型对所有 channel 统一执行 `2x - 1`。
+
+所以这两个说法同时成立：
+
+- processor 没有执行 ImageNet 风格的逐 channel mean/std normalization；
+- learned projection 之前，模型仍把 `[0, 1]` 的值重新居中到 `[-1, 1]`。
+
+`input_proj` 是一个没有 bias 的线性层。它接收一个 raw patch 中的 768 个数，为它产出一个 vision hidden width 的向量：E2B 为 768，大模型为 1,152。每个 patch 独立执行这一步。
+
+原文里的「vision stem」只是指 **learned vision network 的入口**。ResNet 风格的 stem 会先运行多层卷积，并逐渐降低空间分辨率。Gemma 4 不这样做：03 章已经把图像切成 patch，因此 learned entrance 只有一次线性投影。「没有 convolution、ResNet、patch-merging pyramid」只是描述这项架构选择，并不是说这座 tower 不提取特征；接下来的 Transformer encoder 才负责主要的特征提取。
+
+### 2. 位置：先给地址，再让 attention 理解几何
+
+一个 patch 的 768 个颜色值不会说明它来自哪里。同一块蓝色可能是图像顶部的天空，也可能是底部的水面。二维网格被摊平成一维序列后，模型因此需要显式位置信息。
+
+Gemma 4 用两种方式提供位置。第一次阅读时，可以这样理解：
+
+| 位置信号 | 它帮助回答的直觉问题 | 在哪里进入计算？ |
+|---|---|---|
+| learned 2D position embedding | 「这个 patch 在图像的哪里？」 | 一次性加到 patch feature 上 |
+| 2D RoPE | 「两个 patch 在横向和纵向上是什么关系？」 | 每一层 attention 都作用于 query 和 key |
+
+Learned embedding 为 x 和 y 分别准备一张 lookup table。对坐标 `(x, y)`，Gemma 4 查出 `x_embedding[x]` 与 `y_embedding[y]`，相加后再加到 patch feature。Padding 坐标是 `(-1, -1)`，其 position embedding 会被 mask 成零。
+
+在 self-attention 里，2D RoPE 用另一种方式利用相同的 x、y 坐标：每个 attention head 的一半维度携带横向位置，另一半携带纵向位置。这样，attention 会对空间位移敏感：两对 patch 如果横向间距相同，即便整体移动到图像的其他地方，也会得到相同的 x-relative rotation。
+
+「绝对地址 versus 相对几何」是帮助第一次阅读的直觉，不是说训练完成后两个机制的职责还能被完美隔离。初读只需要抓住：learned embedding 让 patch 的初始表示知道位置；2D RoPE 让 attention 计算本身知道这是二维网格。精确的 frequency construction 和 `clamp-then-mask` 实现放在 [`01_vision_tower_anatomy.ipynb`](../../book/04-vision-tower/notebooks/01_vision_tower_anatomy.ipynb)；理解主架构不以它们为前提。
+
+### 3. Vision encoder：让 patch 获得上下文
+
+完成 patch embedding 后，每个 patch 知道自己的像素和位置，却仍不知道整张图里还有什么。Vision encoder 为它补上上下文。
+
+E2B 使用 16 个 Transformer block；更大的 Gemma 4 版本使用 27 个。每个 block 都是熟悉的两段结构：
+
+```text
+patch features
+    │
+    ├─ self-attention ──► 在所有真实 patch 之间交换信息
+    │
+    └─ gated MLP ───────► 变换每个 patch feature
+         两段外围都有 normalization 和 residual connection
+```
+
+Vision attention 不是 causal 的。同一层里，左上角的 patch 可以 attend 到右下角的 patch。重复这个过程，会把局部证据变成带上下文的证据：一个最初只包含棕色像素的 patch，在结合附近纹理、轮廓、面部和场景信息后，可以成为「狗耳朵的一部分」。
+
+序列形状经过 encoder 时不会变化。E2B 上 `[1, 2520, 768]` 进入，`[1, 2520, 768]` 离开。这**不代表什么都没发生**：每个向量都经过 16 层 attention 和 MLP 重写。Padding 行为了保持规则的 batch shape 仍然存在，但 attention mask 不允许它们作为图像内容参与计算。
+
+### 4. Pooler：九个带上下文的 patch feature 变成一个 soft token
+
+如果把例子里的 2,394 个真实 patch feature 全部送进语言模型，会占用过多 context。Gemma 4 对每个空间 3×3 分组做 pooling 来缩短序列：
+
+```text
+57×42 contextual patch grid
+          │ 每个 3×3 neighbourhood 取平均
+          ▼
+19×14 visual-token grid = 266 个真实 soft token
+```
+
+顺序很重要。Gemma 4 在 Transformer **之后** pooling，所以它平均的是已经看过整张图的 feature，而不是九个 raw pixel patch。Encoder 先得到细粒度证据，语言模型再接收更便宜的摘要。
+
+为什么 pooler 要使用坐标？因为 padding 后的 batch 是一维张量，而「这九个 patch 相邻」是二维事实。把 `(x, y)` 分别整除 3，就能把每个 patch 分配到对应的 3×3 分组。`(-1, -1)` padding marker 防止 padding 行成为真实分组。Pooling 完成后，`pooler_mask` 会从 280 个输出上限中移除 14 个未使用输出，剩下上面算出的 266 个真实 soft token。
+
+本质上，这就是普通 average pooling，只是换成一种能在同一 batch 中适配不同网格形状的写法。想看具体 one-hot matrix multiplication 的读者，可以在 anatomy notebook 里复现。
+
+### 5. Multimodal embedder：把 vision width 投影到 text width
+
+Pooler 已经产出了正确**数量**的 visual token，但向量仍使用 vision tower 的 hidden width 和表示空间。语言模型要求自己的 embedding width。`Gemma4MultimodalEmbedder` 就是二者之间的 learned adapter：
+
+```python
+class Gemma4MultimodalEmbedder(nn.Module):
+    def forward(self, inputs_embeds):
+        normalized = self.embedding_pre_projection_norm(inputs_embeds)
+        return self.embedding_projection(normalized)
+```
+
+它只有两部分：
+
+1. 一个没有 learned scale 的 RMSNorm，把输入 feature magnitude 放到稳定范围；
+2. 一个没有 bias 的线性层，学习从 vision width 到 text width 的映射。
+
+在 E2B 的例子里，形状从 `[266, 768]` 变成 `[266, 1536]`。Connector **不会**把 266 再压成更小的数量；它改变每个 token 的表示，使语言模型可以把它与 1,536 维 word embedding 一起接收。到 08 章，这 266 个向量会替换 02 章预留的 266 个 image placeholder 位置。
+
+所以，最朴实的架构描述完全正确：Gemma 4 是一个 vision encoder，后接一个投影到 text space 的 projector。代码把这个 projector 叫作 `Gemma4MultimodalEmbedder`；「connector」是论文里更宽泛的叫法。
+
+## 现在再读 `Gemma4VisionModel.forward`
+
+建立各阶段以后，这段短代码就成了总结，而不是谜题：
+
+```python
+padding_positions = (pixel_position_ids == -1).all(dim=-1)
+output_length = pixel_values.shape[-2] // self.config.pooling_kernel_size**2
+
+# 1. raw patch pixels → 带位置的 vision features
+hidden_states = self.patch_embedder(
+    pixel_values, pixel_position_ids, padding_positions
+)
+
+# 2. 让每个真实 patch 获得上下文
+hidden_states = self.encoder(
+    inputs_embeds=hidden_states,
+    attention_mask=~padding_positions,
+    pixel_position_ids=pixel_position_ids,
+).last_hidden_state
+
+# 3. 空间 3×3 压缩，再丢弃池化后的 padding
+hidden_states, pooler_mask = self.pooler(
+    hidden_states, pixel_position_ids, padding_positions, output_length
+)
+hidden_states = hidden_states[pooler_mask]
+```
+
+随后，`Gemma4Model.get_image_features` 执行第 4 步：
+
+```python
+vision_outputs = self.vision_tower(
+    pixel_values=pixel_values,
+    pixel_position_ids=image_position_ids,
+)
+vision_outputs.pooler_output = self.embed_vision(
+    inputs_embeds=vision_outputs.last_hidden_state
+)
+```
+
+两个 class 的分工现在很清楚：`vision_tower` 理解并压缩图像，`embed_vision` 把结果映射到语言模型需要的 width。
+
+## 之后复现源码时值得知道的细节
+
+这些细节对源码复现有意义，但不是理解架构的主干：
+
+- **大坐标表。** Learned x、y table 各有 10,240 个 entry，长宽比变化时无需 resize 一张固定正方形 position grid。
+- **Q/K/V normalization。** Attention 会 normalize query、key 和 value；value norm 没有 learned scale。这是数值稳定性设计，不是一个新的架构阶段。
+- **Clippable linear。** E2B 可以用 checkpoint 中的 bound 在 linear layer 前后 clamp activation；大模型关闭这条路径。
+- **Float32 pooling。** Pooler 会把平均后的 feature 乘以 `√hidden_size`，因此用 float32 完成这一步，避免 fp16 overflow。
+- **可选输出 standardization。** 大模型的 vision tower 会在 pooling 后使用 checkpoint 中的 bias 和 scale；E2B 不会。
+
+第一个 notebook 使用迷你 CPU 模型逐项验证这些细节。
 
 ## 源码地图
 
 | `modeling_gemma4.py` 中的符号 | 作用 |
 |---|---|
-| [`Gemma4VisionPatchEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L579) | patch 投影 + 学习式 2D 位置表（`_position_embeddings`） |
-| [`Gemma4VisionRotaryEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L707)、[`apply_multidimensional_rope`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L861) | 2D RoPE：按轴旋转一半 head 维度 |
-| [`Gemma4VisionAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L917) / [`Gemma4VisionEncoderLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L986) / [`Gemma4VisionEncoder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1030) | 主干堆叠 |
-| [`Gemma4VisionPooler`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L624)、[`_avg_pool_by_positions`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L637) | 由 patch 坐标驱动的 3×3 池化 |
-| [`Gemma4MultimodalEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2085) | 视觉维度 → 文本嵌入空间 |
-| [`Gemma4Model.get_image_features`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2212) | 一次调用跑完上面全部 |
+| [`Gemma4VisionPatchEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L579) | `[0,1] → [-1,1]`、patch projection、learned x/y embedding |
+| [`Gemma4VisionAttention`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L917) | 带 2D RoPE 的 non-causal self-attention |
+| [`Gemma4VisionEncoderLayer`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L986)、[`Gemma4VisionEncoder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1030) | 16 或 27 层 Transformer stack |
+| [`Gemma4VisionPooler`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L624) | 感知坐标的 3×3 average pooling |
+| [`Gemma4VisionModel`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2017) | patch embedder + encoder + pooler |
+| [`Gemma4MultimodalEmbedder`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2085) | RMSNorm + vision width 到 text width 的投影 |
+| [`Gemma4Model.get_image_features`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2212) | vision tower 后接 connector |
 
-## 源码走读
+## 设计空间：connector 到底连接什么？
 
-`Gemma4VisionModel.forward` 短到几乎可以整段引用，而它就是本章的骨架：
+03 章比较的是**图像采样策略**：固定画布、tiling、动态分辨率，以及 Gemma 4 的选定像素预算。这些设计决定多少 patch feature 到达 vision tower。本章比较紧接着的另一个决定：**vision feature 如何被压缩、映射，并呈现给语言模型？** 两处 design space 前后相连，但不是重复内容。
 
-```python
-pooling_kernel_size = self.config.pooling_kernel_size
-output_length = pixel_values.shape[-2] // (pooling_kernel_size * pooling_kernel_size)
+VLM 论文对「connector」这个词用得很宽松。它可能只指改变 feature width 的 projector，也可能包含 learned token compressor，甚至可能包括插入 LLM 内部的一整条 cross-attention path。比较时把三个问题分开：
 
-padding_positions = (pixel_position_ids == -1).all(dim=-1)
-inputs_embeds = self.patch_embedder(pixel_values, pixel_position_ids, padding_positions)
-output = self.encoder(inputs_embeds=inputs_embeds,
-                      attention_mask=~padding_positions,
-                      pixel_position_ids=pixel_position_ids, **kwargs)
-hidden_states, pooler_mask = self.pooler(output.last_hidden_state, pixel_position_ids,
-                                         padding_positions, output_length)
-hidden_states = hidden_states[pooler_mask]      # 剥掉 padding
-if self.config.standardize:
-    hidden_states = (hidden_states - self.std_bias.float()) * self.std_scale.float()
-```
+1. 它会不会减少 visual token 数？
+2. 它如何把 vision feature width 映射到 language feature width？
+3. Visual vector 会被插入 text sequence，还是作为独立 memory 供 cross-attention 读取？
 
-注意 03 章那个 `(-1, -1)` 哨兵买到了什么：一行 `padding_positions = (pixel_position_ids == -1).all(dim=-1)`，之后每个阶段都知道 2520 个槽位里哪些是真的。位置张量同时干了两件事 —— 平时该由 attention mask 干的活，**以及**充当坐标系。
+| 系列 | Vision encoder 与 LLM 之间发生什么？ | 对 token 数的影响 | Vision 如何进入 LLM | 主要取舍 |
+|---|---|---|---|---|
+| [**LLaVA**](https://arxiv.org/abs/2304.08485) | 原始版本对每个 patch feature 独立应用 linear，后续版本使用小 MLP | 基础 connector 不减 token；每个保留 patch 对应一个输出 | visual vector 加入 input embedding sequence | 最便宜、最容易训练，但 LLM 要为每个 visual patch 付 context 成本 |
+| [**BLIP-2**](https://arxiv.org/abs/2301.12597) | 32 个 learned query 在 Q-Former 中 cross-attend 所有 image feature，再投影 32 个结果 | 稠密 patch sequence → 固定 32 个 | query 输出作为紧凑 visual prefix 来 condition 语言模型 | 压缩能按内容自适应，但增加一个可观的模块及其预训练目标 |
+| [**Flamingo**](https://arxiv.org/abs/2204.14198) | Perceiver Resampler 为每个 image/video 生成 64 个 visual latent；LLM 内部多处插入 gated cross-attention | 可变 vision grid → 每个视觉输入固定 64 个 latent | text state 反复 cross-attend 独立 visual memory | 适合交错 image/video 与 few-shot prompt，但要修改 LLM 架构，并反复支付 cross-attention 成本 |
+| [**Qwen2-VL**](https://arxiv.org/abs/2409.12191) | 拼接相邻 2×2 vision feature，再用 learned merger/MLP 映射 | 四个 patch feature → 一个 visual token | merged vector 进入 language sequence | 保留动态分辨率网格并进行 learned local merge；成本仍随图像面积变化 |
+| [**InternVL 1.5**](https://arxiv.org/abs/2404.16821) | pixel shuffle 把 2×2 空间邻域移入 channel，再由 MLP 映射到 language width | 每个 tile 内四个 feature → 一个；总数仍随 tile 数增长 | 投影后的 tile 与 thumbnail vector 进入 language sequence | 保留高分辨率 tile 细节，但 tile 多时 visual prefix 仍然很长 |
+| **Gemma 4** | 对 3×3 空间分组的 contextual feature 取平均，再做 RMSNorm + 一个 linear projector | 九个 patch feature → 一个 soft token，受所选档位限制 | projected vector 替换预留的 image position | 极便宜、可预测；统一平均不如 learned query 自适应 |
 
-### 1. Patch embedder：[0,1] 在这里变成 [-1,1]
+现在可以具体地比较：
 
-```python
-def forward(self, pixel_values, pixel_position_ids, padding_positions):
-    # Gemma4 applies no normalization and instead scales in model code
-    pixel_values = 2 * (pixel_values - 0.5)
-    hidden_states = self.input_proj(pixel_values)
-    position_embeddings = self._position_embeddings(pixel_position_ids, padding_positions)
-    return hidden_states + position_embeddings
-```
+- **LLaVA connector 主要对齐 feature width。** 基础 LLaVA 不要求 connector 判断哪些 patch 更重要。
+- **BLIP-2 和 Flamingo 学出固定长度摘要。** Learned query 或 latent 决定保留什么，代价是更多容量与训练复杂度。
+- **Qwen2-VL、InternVL 和 Gemma 4 都保留空间网格并做局部降采样。** Qwen 和 InternVL 使用 learned rearrangement/MLP path；Gemma 4 等 encoder contextualise patch 后，再用更简单的 3×3 average。
+- **Flamingo 的 fusion 方式不同。** 它把 visual memory 留在 text sequence 外，并在 LLM 内增加 cross-attention；其他几种主要把 vision output 变成类似 input embedding 的向量。
 
-就是它 —— 03 章缺失的那次归一化，在模型内部的一行算术里。`input_proj` 是一个无 bias 的 `nn.Linear(3 * 16², hidden_size)`：E2B 上是 768 → 768，大尺寸上是 768 → 1152。这就是整个"视觉茎"。没有卷积，没有 ResNet，没有 patch-merging 金字塔。
+这部分正文是 self-contained 的，notebook 是验证和实现练习，而不是缺失的前置内容：notebook 01 打开 Gemma 4 的精确 RoPE 与 pooling 代码；notebook 02 测试这座 tower 在 VQA/OCR/grounding 上带来什么；notebook 03 用相似任务比较 Gemma 4 固定预算与 Qwen3-VL 动态分辨率的 token 数。
 
-### 2. 两套位置信号，以及为什么都要
+## 复习题与答案
 
-那张学习式的表大得刻意：
+1. **`pixel_values` 的一行是什么？** 一个摊平的 16×16 RGB patch，也就是 `16 × 16 × 3 = 768` 个 rescaled pixel value。它的 `(x, y)` 坐标单独存放在 `image_position_ids`。
 
-```python
-self.position_embedding_table = nn.Parameter(torch.ones(2, self.position_embedding_size, self.hidden_size))
-```
+2. **默认档位的 2,520 行从哪里来？** 最大 280 个 soft token，每个 token 在 pooling 前对应 9 个 patch。具体图像可以只有更少的真实行，其余用零 padding，位置标为 `(-1, -1)`。
 
-形状 `(2, 10240, hidden_size)` —— 每个轴一张表，各 10,240 个槽位。按每 patch 16 像素算，可覆盖每边约 164,000 像素的图像。它永远用不完，而这正是重点：查表是按**绝对坐标**做的，所以长宽比变化时不需要插值任何东西。对比 ViT 那张固定 14×14 的位置嵌入网格 —— 每个高分辨率 VLM 都得在加载时对它做双线性缩放。
+3. **为什么既需要坐标又需要 padding mask？** 坐标为 position embedding 和 spatial pooling 保存二维网格；mask 防止 padding 行参与 attention 或通过 pooling 留下来。Gemma 4 从坐标等于 `(-1, -1)` 推导这个 mask。
 
-查表把两个轴相加：
+4. **为什么同时使用 learned position embedding 和 2D RoPE？** Learned x/y embedding 让初始 patch feature 知道位置；RoPE 让每一层 attention 对 patch 之间的横向、纵向位移敏感。它们在计算的不同位置注入空间信息。
 
-```python
-clamped_positions = pixel_position_ids.clamp(min=0)
-x_emb = F.embedding(clamped_positions[..., 0], self.position_embedding_table[0])
-y_emb = F.embedding(clamped_positions[..., 1], self.position_embedding_table[1])
-position_embeddings = x_emb + y_emb
-position_embeddings = torch.where(padding_positions.unsqueeze(-1), 0.0, position_embeddings)
-```
+5. **为什么在 encoder 后 pooling，而不是之前？** 后做 pooling 可以让细粒度 patch 先交换信息，再把带上下文的 feature 做 3×3 压缩。如果更早 pooling raw patch，会在 Transformer 使用局部证据前就把它丢掉。
 
-注意 `clamp(min=0)` 和它的注释：padding 位置是 `-1`，那是非法索引，于是被夹到 0 纯粹为了不崩，然后被无条件置零。**先夹后掩**这个套路在这份代码库里还会出现三次；它存在的理由是：即使某个 gather 的结果你马上要丢掉，这个 gather 本身也必须合法。
+6. **`Gemma4MultimodalEmbedder` 改变什么？** 改变 feature width，不改变 token 数。E2B 上，它通过 RMSNorm 和 learned linear projection 把 `[266, 768]` 变成 `[266, 1536]`。
 
-**然后 RoPE 再做一次，这次是相对的。** 学习式的表给绝对位置。`Gemma4VisionRotaryEmbedding` 给相对位置，按轴分开，而 `compute_default_rope_parameters` 里的注释点明了微妙之处：
+7. **`[0,1] → [-1,1]` 算 normalization 吗？** 广义上算，它是固定的 centring 和 rescaling；但它不是 image processor 的 `do_normalize` 所控制的逐 channel mean/std normalization。
 
-```python
-# The reference implementation computes RoPE frequencies INDEPENDENTLY
-# for each spatial dimension using the partitioned head_dim (head_dim // ndim),
-# so both x and y dimensions get identical frequency ranges.
-# This is different from splitting the global inv_freq between dimensions.
-spatial_dim = dim // 2
-inv_freq = 1.0 / (base ** (torch.arange(0, spatial_dim, 2).float() / spatial_dim))
-```
-
-仔细读，因为这是最容易做错的地方。你**不是**取长度为 `head_dim/2` 的常规 1D `inv_freq` 然后把一半给 x、一半给 y —— 那样会让两个轴拿到不同的频段，横向距离与纵向距离从此不可比。正确做法是每个轴拿到它**自己**的、在 `head_dim/2` 个通道上算出的完整频谱。`head_dim=64` 时 `spatial_dim=32`，x 与 y 各旋转 32 个通道，跨越同一频率范围。由构造保证对称。
-
-`forward` 随后在两个轴上循环并拼接：
-
-```python
-for i in range(2):
-    dim_position_ids = position_ids[:, :, i]
-    freqs = (inv_freq_expanded.float() @ dim_position_ids_expanded.float()).transpose(1, 2)
-    emb = torch.cat((freqs, freqs), dim=-1)
-    all_cos.append(emb.cos()); all_sin.append(emb.sin())
-cos = torch.cat(all_cos, dim=-1)
-```
-
-而施加时把 head 维度切成 `ndim` 等份，每份用它那个轴的 cos/sin 旋转：
-
-```python
-ndim = position_ids.shape[-1]                                   # 2
-num_rotated_channels_per_dim = 2 * (num_input_channels // (2 * ndim))
-x_parts   = torch.split(x,   [num_rotated_channels_per_dim] * ndim, dim=-1)
-y_parts = [apply_rotary_pos_emb(x=x_parts[k], cos=cos_parts[k], sin=sin_parts[k], unsqueeze_dim=unsqueeze_dim)
-           for k in range(ndim)]
-return torch.cat(y_parts, dim=-1)
-```
-
-`apply_multidimensional_rope` 对 `ndim` 是泛化的 —— 传 3D 位置它就做三向旋转。这份泛化大概正是音频塔和未来任何视频原生变体能共用这套机件的原因。
-
-所以：**绝对位置活在残差流里（在茎处加一次）；相对位置活在注意力分数里（每层都施加一次）。** 它们回答不同的问题 —— "这个 patch 在页面的哪里"与"这两个 patch 相距多远" —— 而 Gemma 4 两个都要。
-
-### 3. 编码器块
-
-`Gemma4VisionEncoderLayer` 是 Gemma 风格的块：每个子层前**和**后各有一个 RMSNorm（`input_layernorm` / `post_attention_layernorm`、`pre_feedforward_layernorm` / `post_feedforward_layernorm`），一个门控 MLP，没有因果 mask —— `self.is_causal = False`，因为图像没有阅读顺序。
-
-有两个细节是 Gemma 4 特有的。
-
-**QKV norm，包括一个无缩放的 value norm：**
-
-```python
-self.q_norm = Gemma4RMSNorm(dim=config.head_dim, eps=config.rms_norm_eps)
-self.k_norm = Gemma4RMSNorm(dim=config.head_dim, eps=config.rms_norm_eps)
-self.v_norm = Gemma4RMSNorm(self.head_dim, eps=config.rms_norm_eps, with_scale=False)
-```
-
-在注意力之前归一化 query 和 key 现在是常规操作（它阻止 logits 在长训练中漂移）。归一化 **value** 就少见了，而不带可学缩放地做 —— `with_scale=False`，即纯归一化、零参数 —— 更少见。你会在文本解码器里遇到一模一样的三件套（06 章）。
-
-**Clippable linear。** 视觉塔和音频塔里每个投影都是 `Gemma4ClippableLinear`：
-
-```python
-if self.use_clipped_linears:
-    hidden_states = torch.clamp(hidden_states, self.input_min, self.input_max)
-hidden_states = self.linear(hidden_states)
-if self.use_clipped_linears:
-    hidden_states = torch.clamp(hidden_states, self.output_min, self.output_max)
-```
-
-边界是**从 checkpoint 加载的 buffer**，初始化为 ±inf，所以没有用截断训练过的模型不受影响。E2B 的视觉塔发布时带 `use_clipped_linears: true`；31B 是 `false`。这是烘焙进已发布权重里的激活截断 —— 一项只因为有人在训练时测过数值范围才存在的量化与稳定性措施。
-
-### 4. Pooler：按坐标做 3×3，而不是按下标
-
-池化一个 patch 网格的朴素做法是 reshape 然后取平均。这里行不通，因为每张图的网格形状都不同，而且张量是补过 padding 的。于是 pooler 把池化操作构造成一次**由坐标驱动的矩阵乘法**：
-
-```python
-k = int((input_seq_len // length) ** 0.5)                       # 3
-clamped_positions = pixel_position_ids.clamp(min=0)
-max_x = clamped_positions[..., 0].max(dim=-1, keepdim=True)[0] + 1
-kernel_idxs = torch.div(clamped_positions, k, rounding_mode="floor")
-kernel_idxs = kernel_idxs[..., 0] + (max_x // k) * kernel_idxs[..., 1]
-weights = F.one_hot(kernel_idxs.long(), length).float() / k_squared
-output = weights.transpose(1, 2) @ hidden_states.float()
-```
-
-逐行读：把每个 `(x, y)` 整除 3 得到它所属 3×3 格子的坐标；用图像自身的宽度把格子坐标压平成单个下标；把该下标 one-hot 成一个 `(patch → soft token)` 的分配矩阵、乘以 1/9；然后矩阵乘。padding patch 在调用前已被 `masked_fill` 置零，因此对任何平均值都无贡献。
-
-这是一种不寻常的平均池化写法，而且是正确的那种：它对任意网格形状、任意 padding 模式都成立，一次批量算子搞定，不需要在图像上写 Python 循环。返回的 `mask`（`torch.logical_not((weights == 0).all(dim=1))`）标出哪些输出槽位至少收到一个真实 patch —— 那就是用来剥掉 padding 的 `pooler_mask`。
-
-接着是一步缩放，其注释精确告诉你曾经出过什么事：
-
-```python
-# The scaling expands the activation magnitude, which can exceed the float16 range, so it is
-# computed in float32 and the pooled features are returned in float32.
-hidden_states = hidden_states.float() * self.root_hidden_size
-```
-
-乘以 `√hidden_size`（768 时约 27.7）可能撑破 fp16 的 65504 上限。因此无论模型是什么 dtype，pooler 一律返回 **float32**，由调用方在标准化后再转回去。如果你哪天自己造塔，这是那类几乎不可能从 loss 曲线上发现的 bug。
-
-`standardize`（仅大尺寸）随后施加从 checkpoint 加载的 `std_bias` 与 `std_scale` —— 在 soft token 离开塔之前做一次学习式白化。
-
-### 5. 进入文本空间
-
-```python
-class Gemma4MultimodalEmbedder(nn.Module):
-    def __init__(self, multimodal_config, text_config):
-        self.multimodal_hidden_size = getattr(multimodal_config, "output_proj_dims", multimodal_config.hidden_size)
-        self.embedding_projection = nn.Linear(self.multimodal_hidden_size, text_config.hidden_size, bias=False)
-        self.embedding_pre_projection_norm = Gemma4RMSNorm(self.multimodal_hidden_size, eps=self.eps, with_scale=False)
-
-    def forward(self, inputs_embeds):
-        return self.embedding_projection(self.embedding_pre_projection_norm(inputs_embeds))
-```
-
-**整个 connector 就是：一个 RMSNorm 加一个无 bias 的线性层。** 在上面那一整套机件之后 —— 预算求解、双位置编码、坐标驱动池化 —— 真正通往语言模型的那座桥，是整个文件里最无聊的模块。这就是 LLaVA 的教训，在 2026 年依然成立：projector 不需要聪明；其他一切才需要。
-
-这个类与音频共用，所以它在存在时读 `output_proj_dims`（音频塔自己的输出宽度 1536），否则回落到 `hidden_size`。每个模型有两个实例，`embed_vision` 和 `embed_audio`（01 章 §4），这也正是它们在 10 章可以被分别冻结的原因。
-
-`Gemma4Model.get_image_features` 把它们串起来：
-
-```python
-vision_outputs = self.vision_tower(pixel_values=pixel_values, pixel_position_ids=image_position_ids, **kwargs)
-vision_outputs.pooler_output = self.embed_vision(inputs_embeds=vision_outputs.last_hidden_state)
-return vision_outputs
-```
-
-结果是一串扁平的 soft token，位于文本嵌入空间中，等着 08 章把它们散射进 prompt。
-
-## 设计空间
-
-| 模型 | 图像 → LLM token | 空间位置 | Connector |
-|---|---|---|---|
-| **Flamingo**（2022） | Perceiver resampler → 64 个 latent | latent 上的 1D | LLM 内部的门控交叉注意力层 |
-| **BLIP-2**（2023） | Q-Former → 32 个 query token | 学习式 query | Q-Former + 线性层 |
-| **LLaVA**（2023） | 576 个固定 patch | 1D 学习式 | **单个 MLP** |
-| **Qwen2/3-VL** | 原生分辨率、2×2 merge | M-RoPE（t/h/w） | MLP merger |
-| **InternVL 3.5** | Tile + 缩略图 | 每 tile 内 1D | MLP + pixel shuffle |
-| **Gemma 4** | 预算内的 patch、3×3 池化 | 学习式 2D 表 **+** 2D RoPE | RMSNorm + 线性层 |
-
-有两条轴值得分开看。
-
-**压缩**：所有人都压缩，只是对"在哪压"意见不一。Q-Former 用一个**学习出来的**模块压到固定输出尺寸 —— 表达力强，但那是一个必须训练的瓶颈，而且不论内容多少都是固定预算。Pixel shuffle 和 2×2 merge 靠**重排**通道来压缩，免费且近乎无损，但只能按整数倍。Gemma 4 的 3×3 平均池化是所有选项里最粗暴的，而它有效 —— 这本身就说明编码器已经把大部分重活干完了。
-
-**位置**：LLaVA 把网格压成一条线然后指望 LLM 自己想明白。Qwen 的 M-RoPE 和 Gemma 4 的 2D RoPE 都诚实地编码了网格，并且从不同方向到达了几乎相同的地方 —— M-RoPE 在（时间、高、宽）之间切分 head 维度，Gemma 4 在（x, y）之间切分且每轴共享同一频谱。Gemma 4 额外保留了一张绝对学习表，而 Qwen 放弃了它。这些额外参数很便宜（10240 × hidden × 2），换来的是与分辨率无关的绝对定位。
-
-Gemma 4 真正不寻常的地方**不是**它没用已发布的 SigLIP checkpoint。多数开源 VLM 外挂 SigLIP-so400m 并围绕它 224/384 的固定网格做适配。Gemma 4 从一开始就带着预算方案训练了自己的塔，这也是它的预处理看起来和别人完全不一样的原因。
-
-## 自测
-
-1. 视觉塔同时拥有一张学习式绝对位置表**和** 2D RoPE。分别删掉其中一个，具体会退化什么？
-2. 为什么每个轴要拿到自己的完整频谱，而不是把单个 `inv_freq` 对半分？
-3. `clamp(min=0)` 在 `_position_embeddings` 和 `_avg_pool_by_positions` 里都出现了。没有它会怎样？为什么夹到什么值并不重要？
-4. 模型是 bfloat16 时 pooler 却返回 float32。为什么？逼出这个决定的那个魔数是多少？
-5. 一张图在 280 预算下产出 266 个真实 soft token。执行 `hidden_states[pooler_mask]` 之后，另外 14 个槽位里是什么？
-6. Connector 只有一个 RMSNorm 加一个线性层。结合上游的一切，论证为什么这就够了 —— 然后论证 BLIP-2 当年为什么认为不够。
+8. **一张图在 280 上限下只有 266 个真实 token，另外 14 个输出去哪了？** `pooler_mask` 会移除它们。它们不会进入 connector，也不占语言模型 context position。
 
 ## Notebooks
 
-| Notebook | 内容 | 硬件 |
+| Notebook | 在正文之外增加什么？ | 硬件 |
 |---|---|---|
-| `01_vision_tower_anatomy.ipynb` | hook 住每个阶段打印形状；手写 `apply_multidimensional_rope` 并 `assert_close`；可视化哪些 patch 池化成了哪个 soft token | 🟢 CPU（迷你 config）/ 🟡 真权重 |
-| `02_image_understanding.ipynb` | 真权重 E2B 下这座塔换来了什么：VQA、OCR、文档结构化抽取、grounding 画框 | 🟡 24GB 显存 |
-| <a href="../../04-vision-tower/notebooks/03_compare_qwen3vl.html"><code>03_compare_qwen3vl.ipynb</code></a> | 设计空间对照组：Qwen3-VL 的原生分辨率 + 2×2 merge 在同一批任务上的表现，视觉 token 数并排对比 | 🟡 12GB+ 显存 |
+| [`01_vision_tower_anatomy.ipynb`](../../book/04-vision-tower/notebooks/01_vision_tower_anatomy.ipynb) | 实现 deep dive：hook 每个阶段、复现 2D RoPE、可视化 3×3 分组、检查 float32 pooling | 🟢 CPU（迷你 config）/ 🟡 真权重 |
+| [`02_image_understanding.ipynb`](../../book/04-vision-tower/notebooks/02_image_understanding.ipynb) | E2B 真权重行为实验：VQA、OCR、结构化抽取、grounding 和 soft-token sweep | 🟡 24GB VRAM |
+| [`03_compare_qwen3vl.ipynb`](../../book/04-vision-tower/notebooks/03_compare_qwen3vl.ipynb) | Design-space 实验：在相似任务上比较 Qwen3-VL 动态分辨率与 visual-token 数 | 🟡 12GB+ VRAM |
