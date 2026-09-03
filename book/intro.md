@@ -17,7 +17,7 @@ Gemma 4 earns this role because one open checkpoint family contains almost every
 1. **A spine, not a list.** Chapters 00–10 are one continuous path through one model. Chapter 11 checks that the method transfers instead of leaving you dependent on Gemma-specific names.
 2. **Read the source.** Architecture claims in this book are checkable: they point at a file and a symbol in your own `transformers` install. Where a mechanism matters, a notebook reimplements it and `assert_close`s against the library.
 3. **One model, with a map.** Every Part I chapter ends with a **Design space** section placing Gemma 4's choice against the alternatives (LLaVA, BLIP-2, Flamingo, Qwen-VL, InternVL, Whisper). The single model is the spine; those sections are the map.
-4. **Fighting staleness.** This field reshuffles roughly every quarter. [`landscape.md`](landscape.md) and Part II's landscape pages record the state of play with an explicit **last-verified date**. If that date is more than 6 months old, re-check against official sources.
+4. **Fighting staleness.** This field reshuffles roughly every quarter. Time-sensitive claims carry an explicit **last-verified date** where they appear. If that date is more than 6 months old, re-check against official sources.
 
 ## Part I chapters
 
@@ -41,7 +41,7 @@ Gemma 4 earns this role because one open checkpoint family contains almost every
 
 | Chapter | Topic | Core theory | Practice models (open / closed) |
 |---|---|---|---|
-| [20 · Image Generation and Editing](20-image-generation/overview.md) | Text → image, and instruction editing | Diffusion → DiT → Flow Matching; in-context conditioning | FLUX.2 [klein], Qwen-Image-Edit / GPT Image 2, Nano Banana |
+| [20 · Image Generation and Editing](20-image-generation/index.md) | Text → image, and instruction editing | Diffusion → DiT → Flow Matching; in-context conditioning | FLUX.2 [klein], Qwen-Image-Edit / GPT Image 2, Nano Banana |
 | [21 · Video Generation](21-video-generation/overview.md) | Text/image → video | Video DiT, temporal attention, causal VAE | Wan 2.2, HunyuanVideo 1.5 / Veo 3.1 |
 | [22 · Audio Generation](22-audio-generation/index.md) | Text → speech | Waveforms → codecs / flow matching → speech | Kokoro, F5-TTS, Higgs TTS 3 |
 | [23 · Unified and Omni Models](23-unified-omni/overview.md) | Understanding *and* generation in one model | Architectures that unify both directions | BAGEL, InternVL-U, Qwen3.5-Omni |

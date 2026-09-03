@@ -25,12 +25,7 @@ parts:
       - file: landscape.md
   - caption: Part II · 生成侧
     chapters:
-      - file: 20-image-generation/overview.md
-        sections:
-          - file: 20-image-generation/theory.md
-          - file: 20-image-generation/flux2-klein-deep-dive.md
-          - file: 20-image-generation/landscape.md
-          - file: 20-image-generation/notebooks/README.md
+      - file: 20-image-generation/index.md
       - file: 21-video-generation/overview.md
         sections:
           - file: 21-video-generation/theory.md

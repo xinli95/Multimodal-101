@@ -1,13 +1,12 @@
-# FLUX.2 [klein] 4B Deep Dive: Image Generation Through Diffusers Source
+# 20 · Image Generation: What Actually Happens Between Noise and Pixels?
 
-This section follows one real Diffusers call from a prompt to RGB pixels. It introduces VAE compression, Flow Matching, MMDiT, and Euler integration only when each concept appears in the implementation.
+Gemma 4 turns pixels into text; this chapter reverses the arrow. Rather than separating “theory,” “landscape,” and “practice” into disconnected pages, we follow one real Diffusers call from a prompt to RGB pixels. VAE compression, Flow Matching, MMDiT, and Euler integration enter only when the next line of code requires them.
 
-By the end, four questions should have precise answers:
+Why use FLUX.2 [klein] 4B as the thread? Not because it stands for every image model, but because one locally runnable Apache-2.0 checkpoint concentrates the defining choices of current text-to-image systems: generation in a VAE latent, Qwen3 language conditions, an MMDiT velocity field, Rectified Flow transport from noise to data, and distillation to roughly four evaluations. Once those choices are clear, SD3, Qwen-Image, and larger FLUX.2 variants become variations rather than disconnected names.
 
-1. If the VAE downsamples by 8, why do channels grow from 3 to 32 and then to 128 at the Transformer boundary?
-2. What is the training state $z_t$, and where are the boundaries of $t$ and the noise distribution?
-3. What does it mean to predict a velocity field, and how does Euler integration turn noise into an image?
-4. What do FLUX.2's 5 double-stream and 20 single-stream blocks do in code?
+The narrative keeps returning to four questions: why 8× VAE downsampling grows the channel count from 3 to 32 and then 128 at the Transformer boundary; what the training state $z_t$ actually means and where its time/noise boundaries lie; what a predicted velocity field contains and how Euler integration turns noise into an image; and how FLUX.2's 5 double-stream plus 20 single-stream blocks represent that field.
+
+This design did not appear from nowhere. DDPM established iterative noise-to-data generation, but repeatedly running a U-Net over pixels was expensive. Latent Diffusion moved the computation into a smaller VAE space; DiT showed that a Transformer could replace the U-Net; SD3 and FLUX then put text and image tokens into joint attention and recast the objective as a continuous velocity field through Flow Matching. Klein 4B is a compact cross-section of that evolution, so each component below has a reason to exist rather than being an arbitrary module list.
 
 The `pipelines/flux2/` directory is orchestration rather than the whole model:
 
@@ -21,7 +20,7 @@ The `pipelines/flux2/` directory is orchestration rather than the whole model:
 
 `pipeline_flux2.py` serves the larger family; `pipeline_flux2_klein.py` is our entry point. The inpaint variant adds an initial image and mask, while the KV variant caches reference-image keys and values.
 
-## 1. End-to-end data flow
+## First see the tensors in one generation
 
 For batch size 1, a 1024×1024 output, and 512 text tokens:
 
@@ -51,7 +50,7 @@ timestep → sinusoidal embedding → MLP → shift/scale/gate│
 
 The Transformer does not draw RGB or produce a finished image in one forward. It predicts a local direction; the scheduler advances the latent, and the VAE decodes only after several updates.
 
-## 2. Why 8× VAE compression produces 32 channels
+## What the VAE compresses—and what it preserves
 
 For a 1024×1024 image:
 
@@ -61,7 +60,7 @@ $$
 
 “8×” describes each spatial axis. It does not promise fewer channels. Encoders trade a large spatial grid for more feature channels, moving local color, edge, texture, and semantic information into a learned basis. The total value count still falls from $3{,}145{,}728$ to $524{,}288$. The published [VAE config](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/main/vae/config.json) confirms `latent_channels=32`.
 
-### 2.1 VAE compression is not Transformer patchification
+### VAE compression is not Transformer patchification
 
 The pipeline then performs a fixed 2×2 rearrangement:
 
@@ -78,7 +77,7 @@ No elements are lost: each 2×2 neighborhood moves into the feature dimension. T
 
 Packing and its inverse live in the pipeline's [latent utilities](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L370-L426). Pure T2I samples Gaussian noise directly as `[B,128,64,64]`, the already-patchified representation.
 
-## 3. Flow Matching: state, path, and velocity
+## What exactly is $z_t$?
 
 Let $z_0$ be a real-image VAE latent, $\epsilon\sim\mathcal N(0,I)$ an equal-shaped Gaussian sample, and $t\in[0,1]$. The simplest Rectified Flow path is
 
@@ -113,7 +112,7 @@ One paired line has constant velocity, but inference hides the original pair. Fr
 
 Increasing time runs data → noise. Generation starts at $t=1$ and integrates the same field toward smaller $t$; no separate reverse model is trained. Diffusers often displays a roughly 0–1000 timestep scale, with `timestep = 1000 * sigma`. That is a numeric convention, not 1000 model calls. The scheduler may also shift the sigma grid with image sequence length; see [`set_timesteps()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_flow_match_euler_discrete.py#L283-L370).
 
-## 4. Conditional vector field and Euler integration
+## How the model walks from noise back to an image
 
 The network assigns a velocity to every latent coordinate:
 
@@ -145,7 +144,7 @@ The scheduler's [`step()`](https://github.com/huggingface/diffusers/blob/main/sr
 
 Training samples continuous times. Inference chooses a finite grid. Klein's few-step distillation is why roughly four evaluations can approximate the path well—it does not mean the model learned only four times.
 
-## 5. Qwen3: prompt to 7680-dimensional condition
+## How the prompt changes the velocity map
 
 [`_get_qwen3_prompt_embeds()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L208-L262) applies a chat template, tokenizes to at most 512 positions by default, runs Qwen3 with hidden-state outputs, selects layers 9, 18, and 27, then concatenates features.
 
@@ -163,7 +162,7 @@ $$
 [B,L,7680]\rightarrow[B,L,3072].
 $$
 
-## 6. The FLUX.2 velocity Transformer
+## What kind of network can represent the field?
 
 | Parameter | Value | Meaning |
 |---|---:|---|
@@ -178,7 +177,7 @@ $$
 
 Generic class defaults serve multiple FLUX.2 variants; architectural facts must come from the checkpoint config.
 
-### 6.1 Inputs and timestep modulation
+### Inputs and timestep modulation
 
 Image and text projections are
 
@@ -197,7 +196,7 @@ t → 256-d sinusoidal embedding → MLP → 3072-d time embedding
 
 It is not appended as an ordinary token. AdaLN-style modulation changes each block for the current noise regime. The module graph is built in [`Flux2Transformer2DModel.__init__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1059-L1219).
 
-### 6.2 Five double-stream MMDiT blocks
+### Five double-stream MMDiT blocks
 
 Image and text retain separate residual streams and separate modulation/QKV projections. Their Q, K, and V are then concatenated over tokens:
 
@@ -207,7 +206,7 @@ $$
 
 One joint attention lets image queries read text keys/values and vice versa. The output is split back, then each stream uses its own projection and FFN. This is simultaneously multimodal, jointly attentive, and double-stream. See [`Flux2TransformerBlock`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L876-L968) and [`Flux2AttnProcessor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L327-L395).
 
-### 6.3 Twenty single-stream blocks
+### Twenty single-stream blocks
 
 After five double-stream blocks:
 
@@ -227,7 +226,7 @@ $$
 
 The MLP width is $3072\times3=9216$. See [`Flux2SingleTransformerBlock`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L807-L873) and its [parallel processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L572-L630).
 
-### 6.4 Four-axis RoPE: $(T,H,W,L)$
+### Four-axis RoPE: $(T,H,W,L)$
 
 | Token | Coordinates |
 |---|---|
@@ -238,7 +237,7 @@ The MLP width is $3072\times3=9216$. See [`Flux2SingleTransformerBlock`](https:/
 
 Each axis rotates 32 dimensions, totaling the 128-dimensional head. Attention can therefore represent text order, 2D position, and reference identity. IDs are built by the pipeline's [`_prepare_*_ids()` methods](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L266-L366); [`Flux2PosEmbed`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L971-L998) applies RoPE.
 
-### 6.5 Modulation and output
+### Modulation and output
 
 Time produces shift, scale, and gate values:
 
@@ -254,7 +253,7 @@ This lets one set of weights act differently near noise and data. See [`Flux2Tim
 
 Finally, text and reference tokens are removed and target states project from `[B,N_i,3072]` to `[B,N_i,128]`. Velocity must match the latent for Euler's elementwise update. The complete path is in [`Flux2Transformer2DModel.forward`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1226-L1424).
 
-## 7. One `pipeline.__call__()`
+## Return to `pipeline.__call__()` and close the loop
 
 Ignoring validation, device management, and callbacks, [`Flux2KleinPipeline.__call__()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L614-L919) is:
 
@@ -273,7 +272,7 @@ image = vae.decode(z)                        # [B, 3, 1024, 1024]
 
 [`encode_prompt()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L428-L460) creates text states and IDs; [`prepare_latents()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L479-L510) samples packed Gaussian latents. Each scheduler step updates only the target latent.
 
-## 8. Why generation and editing share one backbone
+## Why the same model can edit images
 
 With references, the pipeline VAE-encodes them and concatenates
 
@@ -283,7 +282,7 @@ $$
 
 Joint attention reads the references, but the output is cropped to target positions; reference latents are not advanced by the scheduler. Distinct $T$ coordinates identify multiple references. Thus one graph covers T2I, reference editing, and—with initial-image/mask logic—inpainting. The KV variant caches invariant reference K/V to avoid repeated work.
 
-## 9. Guidance, distillation, and four-step Klein
+## Why Klein can generate in four steps
 
 Classic classifier-free guidance uses two forwards:
 
@@ -301,7 +300,7 @@ VAE decode × 1
 
 Speed comes from both model size and distillation that removes solver steps and the second CFG forward.
 
-## 10. Why the field needs so much data
+## Why learning this field still needs so much data
 
 The learned map is not one image-to-noise curve but
 
@@ -311,16 +310,15 @@ $$
 
 across visual content, all noise regimes, linguistic relations, resolutions, aspect ratios, and reference combinations. Each image yields many states by resampling $\epsilon$ and $t$, while Qwen3 transfers language/world knowledge. Architecture supplies capacity, not missing concepts: data scale, caption quality, aesthetic filtering, text examples, and editing triplets determine where the field is reliable.
 
-## 11. Source-reading order
+## Verify the explanation in code
 
-1. [`Flux2KleinPipeline.__init__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L155-L205): components and scales.
-2. [`Flux2KleinPipeline.__call__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L614-L919): end-to-end control flow.
-3. `_get_qwen3_prompt_embeds()` and `prepare_latents()`: input shapes.
-4. [`Flux2Transformer2DModel.__init__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1059-L1219): config to modules.
-5. [`Flux2Transformer2DModel.forward`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1226-L1424): actual data flow.
-6. Double-stream block, single-stream block, scheduler `step()`, then VAE decode.
+The shapes in this chapter are not invented for exposition. Start with [`02_flux2_klein_deep_dive.ipynb`](notebooks/02_flux2_klein_deep_dive.ipynb): it runs on CPU without checkpoint weights, calls real tiny Diffusers VAE and FLUX.2 Transformer components, hooks the double- and single-stream boundaries, checks timestep modulation, and asserts every update in a three-step Euler loop. It preserves Klein 4B's 32-channel VAE, 128-wide packed image tokens, and 7680-wide text-conditioning interfaces while shrinking only internal convolution widths, Transformer width, and block counts.
 
-## 12. Mental-model checkpoint
+Then use [`01_flux2_klein_local.ipynb`](notebooks/01_flux2_klein_local.ipynb) for the expensive behavioral experiment: it loads Klein 4B, fixes a seed, varies steps, guidance, and prompts, and checks text rendering. Treat both notebooks as experiments attached to the argument, not as separate knowledge inventories: steps change ODE discretization error, the seed changes $z_1$, and the distilled model does not take the classic two-forward CFG path. The [notebook index](notebooks/README.md) records their hardware requirements.
+
+For source reading, keep the pipeline [`__call__()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L614-L919) beside the Transformer [`forward()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1226-L1424). The first answers “what is called next?” and the second answers “how was this velocity computed?” Every narrower source link in the chapter serves those two questions.
+
+## Compress the chapter back into one mental model
 
 ```text
 Training:

@@ -12,7 +12,7 @@ Gemma 4 是理想教具：一个开源 checkpoint 家族同时覆盖文本/图�
 
 ## 四个已定决策
 
-1. **两部分结构**：Part I 新主线（Gemma 4 解剖 11 章 + GLM-OCR 迁移式 capstone），Part II 保留并压缩生成类章节（5 章）。
+1. **两部分结构**：Part I 新主线（Gemma 4 解剖 11 章 + GLM-OCR 迁移式 capstone），Part II 保留生成类主题（5 章），但章节正文同样采用问题驱动的连续叙事。
 2. **深度：源码级 + 手写复现**——逐段读本机 `transformers` 的 `models/gemma4/*.py`，notebook 用 hook 打印中间张量，并手写复现关键模块与官方输出 `assert_close` 对拍。
 3. **双语：先英文**（`book/` 为唯一源），中文 `book-zh/` 随后补。
 4. **硬件基线：E2B 真权重为主 + 随机权重兜底**——纯架构解剖类 notebook 用 `Gemma4Config` 造极小随机权重模型，CPU 可跑、零下载；能力展示类用 `google/gemma-4-E2B-it`（10.25GB，未 gated，单卡 24GB 够）。
@@ -45,7 +45,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 
 ### Part II · 生成篇（5 章）
 
-保留 `overview/theory/landscape/notebooks` 三件套，每章开头加「与 Part I 的关系」把术语接上。
+不再以 `overview/theory/landscape/notebooks` 模板切碎问题。Chapter 20 已合并成单篇 `index.md`：概念、源码、模型选择和实验在因果链上就地出现；notebook 是相关论点的验证，不是独立的清单页。其余 Part II 章节后续改写时遵循同一原则。
 
 | 新目录 | 来源 |
 |---|---|
@@ -63,6 +63,7 @@ Part I 基于 **transformers 5.14.1** 写成。5.15.0 的 `models/gemma4/` 与�
 - [x] **Batch 4 · Part II 改写**（`e789806`）：五章开头都改写成「与 Part I 的关系」，并清掉重构造成的重复 —— ASR 已移入 Part I 05 章，22 章的 ASR 理论小节与模型表原本在讲第二遍，现在详表并入理解侧 landscape，22 章只留指针加一条真正属于它的观点（为理解优化的编码器与为重建优化的 codec，对同一输入目标相反）。
 - [x] **Batch 5 · 中文版**：`book-zh/` Part I 全 11 章走读、设计空间、自测题译毕（2256 行对英文版 2333 行）；Part II 五章的导读也已重写并接上主线，ASR 去重同步到中文版。两版内容现已对齐，仅 notebook 为共用的英文版。
 - [x] **Batch 6 · OCR capstone**：新增 GLM-OCR 源码走读、四类输出契约、MTP serving 边界、layout-aware pipeline 与三个 notebook；DeepSeek-OCR-2 留作 Chapter 24 的 specialist control。
+- [x] **Batch 7 · Image Generation 连续叙事**：取消 Chapter 20 的 overview/theory/landscape/notebook 分页，把 FLUX.2 Klein 的 VAE → Flow Matching → Transformer → Euler → 编辑与实验合成一条问题驱动主线；中英文同步。
 
 ## 读源码挖到的、与「看 config 想当然」相反的事实
 

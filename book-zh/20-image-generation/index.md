@@ -1,13 +1,12 @@
-# FLUX.2 [klein] 4B Deep Dive：沿 Diffusers 拆解图像生成
+# 20 · 图像生成：从噪声到图片，到底发生了什么
 
-本节不从模型名词表开始，而是跟着一次真实的 Diffusers 调用，把现代图像生成模型从输入 prompt 一直拆到 RGB 像素。遇到 VAE、Flow Matching、MMDiT、Euler solver 等概念时，再补上理解源码所需要的数学。
+Gemma 4 把像素变成文字；这一章把箭头反过来：文字怎样变成像素。我们不把“理论”“模型格局”和“实践”拆成三个互不相干的页面，而是跟着一次真实的 Diffusers 调用，从 prompt 一直走到 RGB。遇到 VAE、Flow Matching、MMDiT 和 Euler solver 时，再补上理解眼前这行代码所必需的数学。
 
-读完后，应该能明确回答四个问题：
+为什么用 FLUX.2 [klein] 4B 做这条主线？不是因为它代表所有图像模型，而是因为它把当代文生图最关键的选择集中在一个能本地运行、Apache 2.0 开放的 checkpoint 里：生成发生在 VAE latent，Qwen3 提供语言条件，MMDiT 表示速度场，Rectified Flow 负责从噪声运输到图片，蒸馏把推理压到约四步。读懂它之后，SD3、Qwen-Image 以及更大的 FLUX.2 变体只是这些选择的不同组合。
 
-1. VAE 明明把空间压缩 8 倍，为什么 channel 会从 3 变成 32，进入 Transformer 后又变成 128？
-2. 训练时构造的 $z_t$ 到底是什么，$t$ 的范围和边界在哪里？
-3. Transformer 所谓“预测速度场”具体输出什么，Euler 方法怎样把噪声一步步变成图片？
-4. FLUX.2 的 5 层 double-stream 和 20 层 single-stream Transformer 在代码里分别做了什么？
+全文反复追问四件事：VAE 明明把空间压缩 8 倍，为什么 channel 会从 3 变成 32，进入 Transformer 后又变成 128；训练时构造的 $z_t$ 究竟是什么，$t$ 的范围和边界在哪里；Transformer 所谓“预测速度场”具体输出什么，Euler 怎样把噪声一步步变成图片；以及 FLUX.2 的 5 层 double-stream 和 20 层 single-stream Transformer 如何共同表示这张速度场。
+
+这条路线不是凭空出现的。DDPM 先证明了“逐步把噪声还原成数据”可以成为高质量生成方法，但直接在像素上反复运行 U-Net 很贵；Latent Diffusion 用 VAE 把计算搬进更小的连续空间；DiT 又证明 Transformer 可以取代 U-Net；SD3/FLUX 随后把文本和图像 token 放进联合注意力，并用 Flow Matching 把训练目标改写成学习一张连续速度场。Klein 4B 是这条演化链的一个紧凑截面，因此下面每个实现细节都有来路，而不是一组任意堆起来的模块。
 
 这里分析的是 Hugging Face Diffusers 的实现。`pipelines/flux2/` 是组装和调度层，真正的神经网络与采样器还分布在另外两个目录：
 
@@ -21,7 +20,7 @@
 
 `pipeline_flux2.py` 面向完整 FLUX.2 系列，`pipeline_flux2_klein.py` 才是本节的主入口；`pipeline_flux2_klein_inpaint.py` 在相同主干上增加 mask 和初始图，`pipeline_flux2_klein_kv.py` 则为参考图编辑缓存 K/V。先读普通 Klein pipeline，最容易看清模型本体。
 
-## 1. 先建立端到端数据流
+## 先看一次生成流过哪些张量
 
 以 batch size 1、1024×1024 输出、默认 512 个文本 token 为例：
 
@@ -83,19 +82,9 @@ Linear 128 → 3072   text tokens 3072              │
 
 最重要的结论是：**Transformer 不直接画 RGB，也不在一次 forward 中吐出最终图片。** 它每次只预测当前位置上的移动方向；scheduler 用这个方向更新 latent，反复数步后，VAE 才把最终 latent 解码成像素。
 
-## 2. 三件套：VAE、文本编码器、速度场 Transformer
+## VAE 压缩了什么，又保留了什么
 
-现代 latent image generator 通常由三部分组成：
-
-1. **VAE**：学习 RGB 图片与连续 latent 之间的可逆近似映射。生成发生在更小的 latent 网格上。
-2. **文本编码器**：把 prompt 变成条件 token。早期模型常用 CLIP/T5，Klein 4B 使用 Qwen3。
-3. **生成主干**：过去常是 U-Net；FLUX.2 使用 Transformer，在 latent token 上预测 Flow Matching 的速度场。
-
-还需要一个没有可学习大参数、却决定推理轨迹的组件：**scheduler/solver**。Transformer 给出“方向”，solver 决定用多大的步长、走到哪个时间点。模型与 solver 的职责不能混为一谈。
-
-## 3. VAE：空间压缩 8 倍为什么得到 32 channels
-
-### 3.1 空间尺寸与 channel 是两件事
+### 空间尺寸与 channel 是两件事
 
 输入图片的形状是：
 
@@ -123,7 +112,7 @@ $$
 
 整体仍约压缩了 6 倍，只是压缩发生在“空间大幅缩小、channel 适当增多”的组合上。32 个 channel 不是 32 种可人工命名的颜色或纹理，而是 VAE 端到端学出的连续特征基底。真实配置可在 [VAE config](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/main/vae/config.json) 中核对。
 
-### 3.2 VAE 压缩和 Transformer patchify 不同
+### VAE 压缩和 Transformer patchify 不同
 
 VAE 得到 `[B,32,128,128]` 后，pipeline 又做一次 $2\times2$ patchify：
 
@@ -148,7 +137,7 @@ $$
 
 四个数字属于四个不同概念。`_patchify_latents()`、`_pack_latents()` 与逆操作集中在 [Klein pipeline 的 latent utilities](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L370-L426)。
 
-### 3.3 为什么 T2I 直接采样 128-channel noise
+### 为什么 T2I 直接采样 128-channel noise
 
 训练图片要先经过 VAE，因此数据端自然产生 `[B,32,128,128]`，再 patchify。纯文生图推理没有输入图片，Diffusers 可以直接在等价的 packed 表示中采样：
 
@@ -159,9 +148,9 @@ Gaussian noise [B, 128, 64, 64]
 
 它与先采样 `[B,32,128,128]` 再做固定 rearrange 在数学上等价，却少一步张量变换。生成循环始终停留在这个 packed latent 空间；只有解码前才 unpatchify 回 32 channels。
 
-## 4. Flow Matching 的 prerequisite：状态、路径和速度
+## $z_t$ 究竟是什么
 
-### 4.1 先不要把 $z_t$ 当作一张“半成品图片”
+### 先不要把 $z_t$ 当作一张“半成品图片”
 
 设：
 
@@ -195,7 +184,7 @@ $z_t$ 的严格含义是：**在预先规定的概率路径上，时间 $t$ 对�
 
 因此训练成本不是“每张图走完整条轨迹”。在大量图片、噪声和时间样本上做随机覆盖后，模型才逐渐学出整个空间中的向量场。
 
-### 4.2 速度标签从哪里来
+### 速度标签从哪里来
 
 对路径求导：
 
@@ -217,7 +206,7 @@ $$
 
 单个训练 pair 的直线路径速度确实是常量 $\epsilon-z_0$；困难在于推理时只给模型某个 $z_t$，它不知道该状态最初配对的是哪张训练图片和哪份噪声。它必须从海量数据中学习条件期望意义上的局部方向：在这个位置、这个时间、这个 prompt 下，往哪里移动最可能抵达数据分布。
 
-### 4.3 “图片到噪声”与“噪声到图片”都对
+### “图片到噪声”与“噪声到图片”都对
 
 按上面的时间约定，正向时间是：
 
@@ -235,7 +224,7 @@ Gaussian noise ─────────────────────�
 
 不是重新训练了一个反向模型，而是把时间步长取成负数。类似于同一张地图上的箭头：顺着时间走从数据到噪声；逆着时间积分就从噪声回到数据。
 
-### 4.4 为什么代码里的 timestep 看起来是 0 到 1000
+### 为什么代码里的 timestep 看起来是 0 到 1000
 
 数学推导通常使用 $t\in[0,1]$。Diffusers scheduler 为兼容训练时间索引，会把它表示成近似 $[0,1000]$ 的数：
 
@@ -252,9 +241,9 @@ $$
 
 时间网格的构造见 [`set_timesteps()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_flow_match_euler_discrete.py#L283-L370)。
 
-## 5. 推理：条件向量场与 Euler 方法
+## 模型怎样沿速度场从噪声走回图片
 
-### 5.1 条件向量场是什么
+### 条件向量场是什么
 
 对任意状态 $z$ 和时间 $t$，网络给每个 latent 坐标分配一个速度：
 
@@ -271,7 +260,7 @@ $$
 
 换一个 prompt，箭头地图也会改变，所以叫**条件向量场**。同一份初始噪声，在“红色跑车”和“水彩鲸鱼”两个条件下会被导向不同的数据区域。
 
-### 5.2 Euler 就是“当前位置速度 × 一小段时间”
+### Euler 就是“当前位置速度 × 一小段时间”
 
 连续动力系统满足：
 
@@ -294,11 +283,11 @@ $$
 
 源码最终就是 `sample + dt * model_output`，位于 scheduler 的 [`step()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_flow_match_euler_discrete.py#L423-L522)。Pipeline 中变量仍叫 `noise_pred`，但在 Flow Matching 语义中它是 velocity/vector field，不应按传统 DDPM 的纯噪声预测来理解。
 
-### 5.3 四步采样不等于只学四个时间点
+### 四步采样不等于只学四个时间点
 
 训练时 $t$ 是连续随机变量，模型学习整个时间范围上的速度。推理时 solver 只挑若干离散点近似积分。普通模型使用更多点会降低离散误差；Klein 4B 经过步数/指导蒸馏，专门把多步教师轨迹压进约四步学生轨迹，才能在极稀疏的时间网格上维持质量。
 
-## 6. Prompt：Qwen3 如何变成 7680 维条件
+## Prompt 怎样改变这张速度地图
 
 [`_get_qwen3_prompt_embeds()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L208-L262) 做了五件事：
 
@@ -322,7 +311,7 @@ $$
 [B,L,7680]\rightarrow[B,L,3072].
 $$
 
-## 7. FLUX.2 Transformer：速度场网络本体
+## 哪种网络能够表示这张速度场
 
 Klein 4B checkpoint 的关键配置是：
 
@@ -341,7 +330,7 @@ Klein 4B checkpoint 的关键配置是：
 
 注意 `Flux2Transformer2DModel` 类定义中的 Python 默认值服务于多个 FLUX.2 变体，不等于 Klein 4B 的真实配置；研究具体 checkpoint 必须读其 `config.json`。
 
-### 7.1 三路输入如何对齐
+### 三路输入如何对齐
 
 图像 token：
 
@@ -364,7 +353,7 @@ t → 256-d sinusoidal embedding → MLP → 3072-d time embedding
 
 图像和文字被投影到相同宽度后才能做联合 attention；时间不作为普通 token 拼进去，而是通过 AdaLN 风格的 modulation 改变每层计算。初始化路径可在 [`Flux2Transformer2DModel.__init__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1059-L1219) 中核对。
 
-### 7.2 前 5 层：double-stream MMDiT
+### 前 5 层：double-stream MMDiT
 
 Double-stream block 保留两条 residual stream：
 
@@ -403,7 +392,7 @@ $$
 
 这就是 MMDiT 中“multi-modal”与“double-stream”同时成立的方式。Block 见 [`Flux2TransformerBlock`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L876-L968)，联合 QKV 见 [`Flux2AttnProcessor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L327-L395)。
 
-### 7.3 后 20 层：single-stream joint Transformer
+### 后 20 层：single-stream joint Transformer
 
 五层双流交互后，代码直接拼接：
 
@@ -435,7 +424,7 @@ $$
 
 SwiGLU 的中间宽度为 $3072\times3=9216$。实现见 [`Flux2SingleTransformerBlock`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L807-L873) 与 fused parallel processor [对应代码](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L572-L630)。
 
-### 7.4 四维 RoPE：$(T,H,W,L)$
+### 四维 RoPE：$(T,H,W,L)$
 
 普通语言模型只需要 token 序列位置。FLUX.2 要同时表达文字、多张参考图和二维图像网格，因此给每个 token 四个坐标：
 
@@ -460,7 +449,7 @@ $$
 
 因此 attention 可以同时感知文本顺序、二维相对位置和参考图身份。ID 生成位于 [`_prepare_text_ids()` / `_prepare_latent_ids()` / `_prepare_image_ids()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L266-L366)，RoPE 实现在 [`Flux2PosEmbed`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L971-L998)。
 
-### 7.5 时间调制：同一组参数如何服务所有噪声阶段
+### 时间调制：同一组参数如何服务所有噪声阶段
 
 时间 embedding 被转换成若干组 shift、scale、gate。核心形式是：
 
@@ -475,7 +464,7 @@ $$
 
 噪声很大时，网络更需要确定全局构图和语义；接近数据端时，更需要处理纹理与边缘。时间调制让同一套 Transformer 权重随噪声阶段改变工作模式。实现位于 [`Flux2TimestepGuidanceEmbeddings` 和 `Flux2Modulation`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1001-L1056)。
 
-### 7.6 输出头为何仍是 128 维
+### 输出头为何仍是 128 维
 
 single-stream blocks 结束后，代码先移除文本 token；若有参考图，也移除参考图 token，只保留待生成目标的 $N_i$ 个位置。最后经过 AdaLN 和线性层：
 
@@ -485,7 +474,7 @@ $$
 
 速度必须与被更新的 latent 同形状，Euler 才能执行逐元素加法。完整 forward 可沿 [`Flux2Transformer2DModel.forward`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1226-L1424) 阅读。
 
-## 8. 对照 `pipeline.__call__()` 阅读一次生成
+## 回到 `pipeline.__call__()`，闭合整条链
 
 把数学对象映射回 [`Flux2KleinPipeline.__call__()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L614-L919)。省略设备管理、callback 和异常检查后，逻辑近似为：
 
@@ -518,7 +507,7 @@ image = vae.decode(z)                        # [B, 3, 1024, 1024]
 5. Scheduler 用 Euler step 只更新目标 latent。
 6. 最终 latent 经反归一化、unpack、unpatchify 和 VAE decode 回到 RGB。
 
-## 9. 生成与编辑为什么能共用同一个模型
+## 为什么同一个模型也能编辑图片
 
 有参考图时，pipeline 先用 VAE 编码参考图片，再在每一步拼接：
 
@@ -536,7 +525,7 @@ Transformer 可以通过联合 attention 读取参考图；输出后 pipeline �
 
 标准 pipeline 每一步都会重新计算参考 token 的 K/V；KV 变体会缓存不随步骤变化的参考部分，减少多参考图编辑的重复计算。
 
-## 10. Guidance、蒸馏与 Klein 的四步生成
+## Klein 为什么四步就能生成
 
 传统 Classifier-Free Guidance 做有条件和无条件两次 forward：
 
@@ -560,7 +549,7 @@ VAE decode × 1
 
 速度快不仅因为“模型较小”，还因为蒸馏同时减少了积分步数和 CFG 的双 forward。
 
-## 11. 这个速度场为什么需要大量数据
+## 为什么学这张速度场仍需要大量数据
 
 需要学习的不是一条从某张图片到某份噪声的曲线，而是：
 
@@ -572,21 +561,13 @@ $$
 
 Transformer 架构提供容量和归纳偏置，却不会自动创造没有在数据中学到的概念。训练数据量、caption 质量、审美过滤、文字渲染样本和编辑三元组，都会直接决定向量场在哪些区域可靠。这也是为什么架构近似的模型，在 prompt 遵循、文字渲染和人物一致性上仍会出现巨大差异。
 
-## 12. 源码阅读顺序
+## 用一次真实运行检验这套解释
 
-第一次阅读不建议从某个 attention processor 的中间开始：
+正文中的 shape 不是为了方便讲解而编造的。配套的 [`01_flux2_klein_local.ipynb`](https://github.com/xinli95/Multimodal-101/blob/main/book/20-image-generation/notebooks/01_flux2_klein_local.ipynb) 会真正加载 Klein 4B，固定 seed 后改变 steps、guidance 和 prompt，并检查文字渲染。阅读它时不要把 notebook 当成另一份知识清单；它只负责验证本章已经建立的因果关系：步数改变的是 ODE 离散误差，seed 改变的是 $z_1$，而蒸馏模型不会走传统 CFG 的双 forward。
 
-1. [`Flux2KleinPipeline.__init__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L155-L205)：组件与尺度。
-2. [`Flux2KleinPipeline.__call__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L614-L919)：端到端控制流。
-3. `_get_qwen3_prompt_embeds()` 与 `prepare_latents()`：两路输入 shape。
-4. [`Flux2Transformer2DModel.__init__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1059-L1219)：配置如何变成模块。
-5. [`Flux2Transformer2DModel.forward`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1226-L1424)：真实数据流。
-6. `Flux2TransformerBlock`：双流如何联合 attention。
-7. `Flux2SingleTransformerBlock`：合流后的并行 attention/MLP。
-8. scheduler `step()`：模型输出如何真正改变 latent。
-9. VAE decode：最后如何回到 RGB。
+如果要跟源码对照，最有效的入口不是逐个背类名，而是同时打开 pipeline 的 [`__call__()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py#L614-L919) 与 Transformer 的 [`forward()`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/transformers/transformer_flux2.py#L1226-L1424)：前者回答“下一步调用谁”，后者回答“这次 velocity 是怎样算出来的”。本章其余源码链接都服务于这两条主线。
 
-## 13. Mental-model checkpoint
+## 把整章压回一张心智图
 
 ```text
 训练：

@@ -17,7 +17,7 @@ Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎
 1. **是脊椎，不是清单。** Part I 是穿过一个模型的一条连续路径。你永远知道自己在哪，因为全书只有一张数据流图，每章都在图上标出自己的位置。
 2. **读源码。** 本书里关于架构的说法都是可核对的：它们指向你自己 `transformers` 安装里的某个文件和符号。凡是重要的机制，都有 notebook 手写复现并与库 `assert_close`。
 3. **一个模型，外加一张地图。** Part I 每章末尾都有**「设计空间」**小节，把 Gemma 4 的选择与替代方案（LLaVA、BLIP-2、Flamingo、Qwen-VL、InternVL、Whisper）摆在一起。单个模型是脊椎，这些小节是地图。
-4. **对抗过时。** 这个领域约每季度洗牌一次。[`landscape.md`](landscape.md) 与 Part II 的格局页记录当前状态，并**标注 last-verified 日期**。超过 6 个月请以官方渠道为准。
+4. **对抗过时。** 这个领域约每季度洗牌一次。正文中的时效性结论会在出现处**标注 last-verified 日期**；超过 6 个月请以官方渠道为准。
 
 ## Part I 章节
 
@@ -41,7 +41,7 @@ Gemma 4 配得上这个位置，是因为一个开源 checkpoint 家族里几乎
 
 | 章节 | 主题 | 理论核心 | 实践模型（开源 / 闭源） |
 |---|---|---|---|
-| [20 · 图像生成与编辑](20-image-generation/overview.md) | 文生图与指令编辑 | Diffusion → DiT → Flow Matching；in-context 条件 | FLUX.2 [klein]、Qwen-Image-Edit / GPT Image 2、Nano Banana |
+| [20 · 图像生成与编辑](20-image-generation/index.md) | 文生图与指令编辑 | Diffusion → DiT → Flow Matching；in-context 条件 | FLUX.2 [klein]、Qwen-Image-Edit / GPT Image 2、Nano Banana |
 | [21 · 视频生成](21-video-generation/overview.md) | 文/图生视频 | Video DiT、时序注意力、Causal VAE | Wan 2.2、HunyuanVideo 1.5 / Veo 3.1 |
 | [22 · 语音与音频生成](22-audio-generation/index.md) | 文本转语音 | 波形 → codec / flow matching → 语音 | Kokoro、F5-TTS、Higgs TTS 3 |
 | [23 · 统一与 Omni 模型](23-unified-omni/overview.md) | 理解**与**生成同在一个模型 | 统一双向的架构 | BAGEL、InternVL-U、Qwen3.5-Omni |
