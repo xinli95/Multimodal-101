@@ -1,12 +1,30 @@
 # 03 · Image Processor — Pixels Under a Token Budget
 
-**Position in the pipeline**: `image ──► Gemma4ImageProcessor ──► pixel_values + image_position_ids`
+This chapter can be read on its own. Its question is: **how does an ordinary image become the fixed-shape tensors that Gemma 4's learned vision tower accepts?**
 
-**Mental-model checkpoint:** this chapter covers the *compute-allocation and geometry* step before the learned vision tower. The processor decides how densely the model will sample the image; it does not yet decide what the image means.
+```text
+PIL image / NumPy array / tensor
+              │
+              ▼
+      Gemma4ImageProcessor
+      resize → rescale → patchify → pad
+              │
+              ├─ pixel_values
+              ├─ image_position_ids
+              └─ num_soft_tokens_per_image
+              │
+              ▼
+      Gemma4VisionModel                (chapter 04)
+              │
+              ▼
+      visual soft-token embeddings
+```
 
-Every vision-language model has to answer one question: an image is a 2D grid of arbitrary size, a transformer wants a 1D sequence of bounded length — how do you convert? The answers the field has tried are the whole history of VLM image handling: squash everything to 224×224 (CLIP, lossy for anything text-shaped), tile a big image into fixed crops (InternVL), keep native resolution and let the sequence grow (Qwen2-VL, expensive and unpredictable).
+This chapter follows the middle box: it allocates image compute and records geometry, but does not contain learned weights and does not decide what the image means. [Chapter 02](../02-text-io/index.md) uses `num_soft_tokens_per_image` to reserve the right number of positions in the text prompt; [chapter 04](../04-vision-tower/index.md) consumes `pixel_values` and `image_position_ids` to produce learned visual features.
 
-Gemma 4's answer is a **pixel budget**: keep the aspect ratio, scale the image so its total pixel count fits a budget, and force both sides to be divisible by 48. The number of vision tokens is then fixed and known in advance — you choose it from a menu.
+Every vision-language model has to answer one question: an image is a 2D grid of arbitrary size, a transformer wants a 1D sequence of bounded length — how do you convert? The answers the field has tried are the whole history of VLM image handling: fit everything into a fixed square (CLIP, lossy for anything text-shaped), tile a big image into fixed crops (InternVL), or let an aspect-ratio-preserving grid grow with the image within configured bounds (Qwen2-VL, adaptive but variable in cost).
+
+Gemma 4's answer is a **pixel budget**: keep the aspect ratio, scale the image so its total pixel count fits a budget, and force both sides to be divisible by 48. You choose a maximum from a five-item menu. The padded patch tensor then has a known fixed shape; the number of real soft tokens can be slightly below that maximum because both image dimensions are rounded down.
 
 ## What you will learn
 
@@ -26,7 +44,9 @@ Gemma 4's answer is a **pixel budget**: keep the aspect ratio, scale the image s
 | 560 | 5,040 | ~1.3M px |
 | 1,120 | 10,080 | ~2.6M px |
 
-Nine patches (3×3) pool down to one soft token, hence the 9× ratio between the columns. `max_soft_tokens` is validated against exactly this set — anything else raises.
+Nine patches (3×3) pool down to one soft token, hence the 9× ratio between the columns.
+
+Here `max_soft_tokens` is **not an arbitrary integer upper bound**. “Validated against this set” means the processor checks that the value is a member of `(70, 140, 280, 560, 1120)`. “Raises” is Python shorthand for “raises an exception”: for example, `Gemma4ImageProcessor(max_soft_tokens=300)` immediately raises `ValueError` instead of silently rounding 300 to a supported tier. The same check is applied if the value is overridden during preprocessing. These five values are therefore configuration presets, not five examples.
 
 ## Source map
 
@@ -99,7 +119,7 @@ Run the solver over a spread of shapes — this is the table that makes the desi
 
 Three observations, one of which costs money:
 
-1. **Aspect ratio really is preserved.** 640×480 and 480×640 produce transposed targets and identical token counts. The 15:1 panorama stays 16:1. No squashing.
+1. **Aspect ratio is preserved approximately, then quantised.** 640×480 and 480×640 produce transposed targets and identical token counts. Independent rounding to 48-pixel multiples changes 4:3 to about 1.29:1 at budget 70, and the 15:1 panorama to 16:1. That is a small geometry error, not the wholesale squashing into a square used by some fixed-canvas pipelines.
 2. **You never quite hit the budget.** Flooring to multiples of 48 wastes 2–10% of the allowance. `pixel_values` is padded back up to the full `max_patches` anyway (§4), so that slack is real compute you pay for and do not use.
 3. **The budget is a target, not a cap — small images get upscaled.** That 100×100 thumbnail is resized *up* to 768×768 and charged 256 soft tokens. Bicubic upsampling adds no information; it adds cost. If you are batch-processing thumbnails or icons, drop `max_soft_tokens` to 70 explicitly. Nothing in the API warns you about this.
 
@@ -136,7 +156,32 @@ def _validate_preprocess_kwargs(self, **kwargs):
 
 The base class insists that `do_resize=True` implies a `size` dict. Gemma 4 resizes, but its target is computed, not configured — so it lies to the validator. `size = None` on this class is deliberate.
 
-### 4. Patchify, positions, padding
+### 4. From a 2D image to a batchable sequence
+
+Four terms are easy to collapse into one, so keep their jobs separate:
+
+| Term | What it is | Why it exists |
+|---|---|---|
+| **patch** | One 16×16 RGB square, flattened to 768 numbers | Turns the pixel grid into units a transformer can ingest |
+| **position ID** | The patch's `(x, y)` coordinate in the patch grid | Preserves 2D layout after patches become a 1D sequence |
+| **padding slot** | A zero patch with position `(-1, -1)` | Gives every image in a batch the same tensor shape |
+| **soft token** | The learned result after the vision tower pools a 3×3 block of patches | This is what eventually occupies the language-model context |
+
+#### First make patches
+
+Take the first row of the earlier table: a 640×480 input at budget 70 is resized to **432×336** (width × height). With 16×16 patches, it becomes a grid with 27 columns and 21 rows:
+
+```text
+432×336 pixels
+    │ split into 16×16 squares
+    ▼
+27×21 patch grid = 567 patches
+    │ later, pool each 3×3 patch block
+    ▼
+9×7 grid = 63 soft tokens
+```
+
+The processor performs only the first conversion. The 3×3 pooling happens in the learned vision tower in chapter 04; `num_soft_tokens_per_image` merely records the result it will have: `567 / 9 = 63`.
 
 Patchification is inherited wholesale from SigLIP 2 (the source says so in a `# Copied from` comment) and is pure reshaping:
 
@@ -146,7 +191,9 @@ patched_image = patched_image.permute(1, 3, 2, 4, 0)
 patched_image = patched_image.reshape(num_patches_height * num_patches_width, -1)
 ```
 
-A patch becomes a vector of `16 × 16 × 3 = 768` numbers. Row-major over the grid: patch index runs left to right, then top to bottom.
+A patch becomes a vector of `16 × 16 × 3 = 768` numbers. The 567 patches above therefore become a tensor with shape `[567, 768]`. They are flattened row by row: left to right across the first row, then left to right across the second row, and so on.
+
+#### Then remember where each patch came from
 
 Positions are built with an explicit `"xy"` indexing convention:
 
@@ -155,9 +202,11 @@ patch_grid = torch.meshgrid(torch.arange(patch_width), torch.arange(patch_height
 real_positions = torch.stack(patch_grid, dim=-1).reshape(patches.shape[0], 2)
 ```
 
-so each row is **`(x, y)` — column first, row second**. Get this backwards when you write your own 2D RoPE in chapter 04 and everything will run, produce plausible shapes, and be subtly wrong.
+so each row is **`(x, y)` — column first, row second**. For the 27×21 example, the sequence starts `(0,0), (1,0), …, (26,0), (0,1), …` and ends at `(26,20)`. A one-dimensional sequence index is not enough: index 27 could mean “start of the second row” only if the model also knew that this particular image was 27 patches wide. Explicit `(x, y)` coordinates keep that fact after flattening. Get the order backwards when you write your own 2D RoPE in chapter 04 and every shape still looks valid, but horizontal and vertical position information is exchanged.
 
-Then everything is padded to the full budget, with padding *positions* marked `-1`:
+#### Finally pad to one common shape
+
+Different aspect ratios use different numbers of real patches. At budget 70, for example, a batch tensor cannot directly stack the rectangular image's `[567, 768]` result above beside a square image's `[576, 768]`, so each image is extended to the tier's full 630-patch budget. Pixel rows are padded with zeros and their matching positions are marked `(-1, -1)`:
 
 ```python
 positions = torch.nn.functional.pad(positions, (0, 0, 0, padding_length), mode="constant", value=-1)
@@ -172,26 +221,50 @@ out = ip([img_480x640, img_100x100], return_tensors="pt")
 # num_soft_tokens_per_image  tensor([266, 256])
 ```
 
-**`pixel_values` has a fixed shape regardless of input image.** 2520 is `280 × 3²`, the full patch budget. Variable-resolution input, constant-shape tensor — that is what makes batching and `torch.compile` tractable, and it is why `(-1, -1)` exists: the *positions* tensor is what tells the tower which of those 2520 slots are real. `num_soft_tokens_per_image` is the true count (266 and 256 here, not 280), and it is what chapter 02's `replace_image_token` uses to size the placeholder run.
+Read the three outputs together:
+
+- `pixel_values[i]` always has 2,520 rows at the default tier: real patch vectors first, zero padding after them.
+- `image_position_ids[i]` gives every real row its `(x, y)` coordinate and marks every padded row `(-1, -1)`. The vision tower derives its attention mask from this sentinel, so padding is not treated as image content.
+- `num_soft_tokens_per_image[i]` is the number of real 3×3 groups after pooling. It is 266 and 256 here, not 280; chapter 02 uses it to size the placeholder run in the text sequence.
+
+Variable-resolution input has therefore become a constant-shape patch tensor without losing the boundary between real data and padding. This makes batching and compilation tractable. Notice that padding happens **before** the vision tower, whereas soft-token pooling happens **inside** it.
 
 This trio — fixed-shape values, sentinel-marked positions, a separate true-count — is the same pattern you will meet again for audio in chapter 05.
 
-### 5. `Gemma4ImageProcessorPil`
+### 5. Why is there a PIL fallback?
 
-There are two implementations: `Gemma4ImageProcessor` extends `TorchvisionBackend` (tensor ops, GPU-capable, the default), and `Gemma4ImageProcessorPil` is the PIL fallback. They must agree numerically, which is why the resize specifies `antialias=True` explicitly — PIL's `BICUBIC` antialiases by default and torchvision's does not. Silent train/serve skew lives in exactly this kind of gap.
+“Fallback” here means **an alternative preprocessing backend**, not “retry with PIL if an image is corrupt” or “recover from a GPU error.” `Gemma4ImageProcessor` uses torchvision tensor operations and is the default when torchvision is installed; it can keep tensor inputs on an accelerator and fits compiled tensor pipelines. `Gemma4ImageProcessorPil` implements the same resize → rescale → patchify → pad contract with PIL and NumPy, so the processor also works in a lightweight CPU environment without torchvision. Hugging Face's [`AutoImageProcessor`](https://huggingface.co/docs/transformers/main/en/image_processors) can select PIL when torchvision is unavailable, or the caller can request a supported backend explicitly.
+
+Is this common practice? **PIL preprocessing is common; providing two interchangeable backends is common compatibility engineering, but not a requirement of the model and not universal across all modern processors.** PIL was the conventional Python image path for years and remains useful for portability and reproducing older pipelines. Torchvision is now the performance path. Gemma 4 carries both because the preprocessing contains no learned computation and can be expressed either way.
+
+The maintenance cost is numerical parity. Resize libraries can differ at pixel boundaries, which can create silent train/serve skew. Gemma 4 therefore requests `antialias=True` on the torchvision bicubic resize to match PIL's antialiased bicubic behaviour as closely as possible. The two backends should implement the same semantics, but floating-point or interpolation details can still cause tiny numerical differences; “same backend everywhere” is the safest rule when exact reproducibility matters.
 
 ## Design space
 
-Four answers to "arbitrary grid → bounded sequence", and what each optimises:
+The approaches below solve the same interface problem—turn arbitrary `H×W` pixels into transformer tokens—but make different choices about *where resolution is lost* and *whether cost follows the input*.
 
-| Approach | Token count | Aspect ratio | Cost of a big image |
-|---|---|---|---|
-| **Fixed square** (CLIP, LLaVA 1.0) | Constant | Destroyed | Constant — detail is simply lost |
-| **Tiling** (InternVL, LLaVA-NeXT) | Steps by tile | Preserved per tile | Grows in chunks; tile seams are real |
-| **Native resolution** (Qwen2-VL/Qwen3-VL) | Continuous, unbounded | Preserved | Grows without limit — a 4K screenshot can cost thousands of tokens |
-| **Pixel budget** (Gemma 4) | Chosen from a menu | Preserved | **Constant by construction** |
+| Approach | Mechanism | Token-cost behaviour | Strength | Characteristic failure mode |
+|---|---|---|---|---|
+| **Fixed canvas** ([CLIP](https://arxiv.org/abs/2103.00020), early LLaVA) | Resize every image to one training resolution; obtain a square via cropping, padding, or sometimes distortion | Exactly constant | Simple, dense batches, predictable latency | Downsampling removes fine detail; cropping may remove content; stretching changes geometry |
+| **Any-resolution tiling** ([LLaVA-NeXT](https://github.com/haotian-liu/LLaVA/blob/main/llava/mm_utils.py), [InternVL 1.5](https://arxiv.org/abs/2404.16821)) | Choose a canvas/grid, split it into fixed-size crops, and usually add a global thumbnail | Rises in discrete tile-sized steps, up to a configured tile limit | Local tiles retain small text and objects while the thumbnail supplies global context | Repeated encoding and padding cost; the model must reconcile tiles, boundaries, and global coordinates |
+| **Dynamic/native grid** ([Qwen2-VL](https://arxiv.org/abs/2409.12191)) | Keep one aspect-ratio-preserving grid and let its patch count follow image area, within configured minimum and maximum pixel bounds | Variable and approximately proportional to retained area | A small image can stay cheap while a detailed large image receives more tokens | Variable sequence lengths complicate batching and latency; an overly generous maximum makes large inputs expensive |
+| **Selected pixel budget** (Gemma 4) | Scale every image toward one chosen area tier, round both sides to pooling-compatible multiples, then pad patches to the tier ceiling | Fixed padded patch shape; real soft-token count is near but at most the chosen tier | Predictable memory shape and a direct quality/cost knob | Content density is ignored; small inputs are upscaled and dense large inputs are downsampled |
 
-Gemma 4's version is the most *predictable*: you know the token cost before you see the image, which is exactly what you need to plan a context budget or price an API call. The trade is that it does not adapt — a dense 4K document and a blurry snapshot both get 280 tokens unless you intervene, whereas Qwen's native-resolution scheme would spend more on the document automatically. The menu is the escape hatch, and using it well is a real engineering decision, not a default to leave alone.
+### Fixed canvas: spend the same, whatever arrives
+
+Classic CLIP-style pipelines present the vision encoder with one square resolution. “Fixed square” does not imply one universal resize rule: a pipeline may resize and centre-crop, letterbox with padding, or stretch. All three create a constant patch grid, which makes training and batching easy. The unavoidable trade is that an ultrawide screenshot and a portrait document must both fit the same canvas. Cropping sacrifices coverage, padding wastes part of the grid, and stretching sacrifices geometry; heavy downsampling sacrifices fine detail in every variant.
+
+### Tiling: buy detail in whole crops
+
+Tiling avoids shrinking the entire image to a small square. LLaVA-NeXT's AnyRes selects a candidate canvas, fits and pads the image, then divides it into vision-encoder-sized crops; InternVL-style dynamic high resolution similarly chooses a tile grid and commonly adds a thumbnail of the full image. This gives the model both local high-resolution views and global context. Cost increases one tile at a time rather than one patch at a time. It works well for documents and large scenes, but some pixels may be encoded twice, padding inside the chosen canvas may be wasted, and the model needs machinery or training to understand how separate crop coordinates fit together.
+
+### Dynamic/native grid: let the image choose the bill
+
+“Native resolution” is convenient shorthand, not a claim that raw dimensions pass through unchanged. Qwen2-VL rounds/resizes the image into a patch-compatible grid and constrains it with [`min_pixels` and `max_pixels`](https://huggingface.co/docs/transformers/model_doc/qwen2_vl#usage-tips); within that interval, a larger retained area produces more visual tokens. This is adaptive in a way Gemma 4 is not: a small icon can use few tokens while a large document can use many. The price is input-dependent memory and latency, plus less uniform batches. It is also not literally unbounded when `max_pixels` is configured—the bound is continuous and user-set rather than one of Gemma 4's five discrete tiers.
+
+### Gemma 4's selected budget: choose the bill first
+
+Gemma 4 asks the caller to choose a tier, then scales both a dense 4K document and a blurry snapshot toward that same target area. This is the most operationally predictable option: before seeing the image, you know the padded patch shape and the maximum number of context tokens. You do **not** know the exact real-token count until the aspect-ratio rounding is done. The trade is lack of content awareness: the processor cannot know that one image contains tiny invoice lines and the other does not. The five-tier menu is the manual escape hatch, and selecting it is a real engineering decision rather than a default to leave alone.
 
 The design also quietly explains Gemma 4's OCR behaviour. At 280 soft tokens a 1024×1024 page is rendered at 768×768 — roughly 0.7 megapixels for a full page. Small print will not survive that. Bumping to 560 or 1120 is the fix, and chapter 04's notebook measures where the cliff is.
 
