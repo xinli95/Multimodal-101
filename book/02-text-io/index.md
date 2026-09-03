@@ -1,253 +1,319 @@
-# 02 · Text I/O — Tokenizer, Chat Template, Placeholders
+# 02 · Text I/O — From Messages to Model Input
 
-**Position in the pipeline**: `messages ──► chat template ──► tokenizer ──► input_ids`
+This chapter can be read on its own. Its question is simple: **how does a Python chat conversation become the integer sequence that Gemma 4 receives?** With an image attached, two paths run side by side:
 
-The multimodal part of a multimodal model starts, counterintuitively, in the *text* pipeline. Before any pixel is touched, the chat template has already decided where the image goes: it expands a single `{"type": "image"}` entry into a run of 280 identical placeholder token IDs, wrapped in begin/end-of-image markers. Chapter 08 will overwrite those placeholder embeddings with real visual features. Everything in between is bookkeeping on a flat sequence of integers.
+```text
+messages ── chat template ──► prompt text containing one <|image|>
+image    ── image processor ─► pixel_values + a count N
+                                      │
+prompt text + N ── expand marker ──► final prompt ── tokenizer ──► input_ids
+```
+
+This chapter follows the top path and explains the join. [Chapter 03](../03-image-processor/index.md) explains how the image processor obtains `pixel_values` and `N`; [chapter 08](../08-fusion-and-masks/index.md) explains how the model later replaces the `N` reserved positions with image features. You do not need either implementation yet.
 
 ## What you will learn
 
-1. How `Gemma4Processor` composes a tokenizer, an image processor, a video processor and an audio feature extractor behind a single `__call__`
-2. How `apply_chat_template` turns a `messages` list into a string, and how the placeholder runs are computed — including the *dynamic* audio case, where token count depends on duration
-3. The special-token map, and why the model has to temporarily rewrite placeholder IDs to `pad_token_id` before embedding lookup
-4. Gemma 4's native `system` role, its configurable thinking mode, and its function-calling format
-5. Why `padding_side="left"` is mandatory for batched generation
+1. The separate jobs of a chat template, tokenizer, and multimodal processor
+2. How to read Gemma 4's template from a one-turn conversation outward
+3. Why one image marker becomes a run of `N` placeholder IDs
+4. Why images are nested by sample when a batch is assembled
+5. When left padding is appropriate, and what it costs
 
-## The special tokens
+## Three objects, three jobs
 
-| Token | ID | Purpose |
-|---|---|---|
-| `boi_token_id` | 255999 | begin-of-image |
-| `boa_token_id` | 256000 | begin-of-audio |
-| `image_token_id` | 258880 | image placeholder — repeated `image_seq_length` (default **280**) times |
-| `audio_token_id` | 258881 | audio placeholder — repeated `ceil(duration_ms / 40)` times, capped at 750 |
-| `eoi_token_id` | 258882 | end-of-image |
-| `eoa_token_index` | 258883 | end-of-audio |
-| `video_token_id` | 258884 | video placeholder |
+The names are easy to blur together, so establish these boundaries first:
 
-The 40ms per audio token is not arbitrary: it falls out of the audio tower's 4× temporal downsampling applied to 10ms frames (chapter 05).
+| Object | Input | Output | Job |
+|---|---|---|---|
+| chat template | structured `messages` | one prompt string | serialise roles and content in the syntax Gemma 4 was trained on |
+| tokenizer | a string | integer `input_ids` | split text into vocabulary pieces and look up their IDs |
+| `Gemma4Processor` | text plus optional images, audio, and video | one model-ready batch | coordinate the tokenizer and the three modality-specific preprocessors |
 
-## Source map
+A chat template is not a model and it is not ChatML knowledge you are expected to have. It is a **serializer**. Different chat models were trained on different separators, so the same conversation has to be written in each model's dialect before tokenization.
 
-| File | Symbol | Role |
-|---|---|---|
-| `processing_utils.py` / `processing_gemma4.py` | [`Gemma4Processor.__call__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L648) | The inherited front door for all four modalities |
-| `processing_gemma4.py` | [`prepare_inputs_layout`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L110), [`validate_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L134) | Ordering and consistency of interleaved inputs |
-| | [`replace_image_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L169), [`replace_audio_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L192), [`replace_video_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L173) | Placeholder-run expansion |
-| | [`_get_num_multimodal_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L205), [`_compute_audio_num_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L260) | How many placeholders each input is worth |
-| `modeling_gemma4.py` | [`Gemma4Model.get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2231) | The consumer side: finding those placeholders again |
-| | [`Gemma4TextScaledWordEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1465) | Embedding lookup scaled by `√hidden_size` |
-
-## Walkthrough
-
-### 1. `Gemma4Processor` is four processors in a trench coat
-
-```python
-class Gemma4Processor(ProcessorMixin):
-    def __init__(self, feature_extractor, image_processor, tokenizer, video_processor,
-                 chat_template=None, image_seq_length: int = 280,
-                 audio_seq_length: int = 750, audio_ms_per_token: int = 40, **kwargs):
-```
-
-Four sub-processors, one object. `AutoProcessor.from_pretrained` builds all four from a single `processor_config.json`, and `processor(text=..., images=..., videos=..., audio=...)` routes each argument to its owner and then merges the results into one `BatchFeature`. This is the pattern for every multimodal model in the library; learn it once here.
-
-Two of the constructor's defaults are the numbers this whole chapter turns on:
-
-- `image_seq_length = 280` — how many placeholder tokens one image is worth
-- `audio_ms_per_token = 40` — how many milliseconds one audio token is worth
-
-The comment in the source explains where 40 comes from, and it is a load-bearing fact for chapter 05: *"the SSCP convolution's 4× time reduction on 10ms frames."*
-
-### 2. The chat template emits **one** `<|image|>`, not 280
-
-This is the single most common misunderstanding about multimodal chat templates, so it is worth being precise. Pull the template and read it:
+## Start with one text turn
 
 ```python
 from transformers import AutoProcessor
-proc = AutoProcessor.from_pretrained("google/gemma-4-E2B-it")
-print(proc.chat_template)   # 386 lines of Jinja
+
+processor = AutoProcessor.from_pretrained("google/gemma-4-E2B-it")
+messages = [
+    {"role": "user", "content": "Explain tokenization in one sentence."}
+]
+
+prompt = processor.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True,
+)
+print(prompt)
 ```
 
-In the message loop, a content item of type `image` produces exactly this:
+The important structure of the result is:
+
+```text
+<bos><|turn>user
+Explain tokenization in one sentence.<turn|>
+<|turn>model
+```
+
+Read it literally:
+
+- `<bos>` starts the sequence.
+- `<|turn>user\n` opens a user turn; `<turn|>` closes it.
+- `<|turn>model\n` is an empty model-turn header. `add_generation_prompt=True` adds this header so generation knows which role should speak next.
+
+Only after that does the tokenizer convert the complete string—including the turn delimiters—into IDs:
+
+```python
+encoded = processor.tokenizer(prompt, return_tensors="pt")
+print(encoded["input_ids"].shape)
+```
+
+That is the basic pipeline. Jinja is merely the implementation language used to loop over `messages` and emit this string.
+
+## Read the template from the inside out
+
+You do not need to understand all 386 lines at once. Start with the two decisions every template must make.
+
+### 1. Write each role and close each turn
+
+Conceptually, the message loop does this:
 
 ```jinja
+<|turn>{{ message['role'] }}
+{{ message['content'] }}<turn|>
+```
+
+Real Jinja adds validation and handles content lists, but the grammar is still “open role, write content, close turn.” An earlier assistant reply is not special; it becomes another closed `model` turn before the next `user` turn.
+
+### 2. Content can be a string or a list
+
+Plain text may be a string. Multimodal messages use a list so text and attachments have an explicit order:
+
+```python
+messages = [{
+    "role": "user",
+    "content": [
+        {"type": "image", "path": "cat.jpg"},
+        {"type": "text", "text": "What is the cat doing?"},
+    ],
+}]
+```
+
+For this list, the template's inner loop reduces each item to text:
+
+```jinja
+{%- if item.get('type') == 'text' -%}
+    {{- item['text'] -}}
 {%- elif item.get('type') in ['image', 'image_url'] -%}
     {{- '<|image|>' -}}
-{%- elif item.get('type') in ['audio', 'input_audio'] -%}
-    {{- '<|audio|>' -}}
-{%- elif item.get('type') == 'video' -%}
-    {{- '<|video|>' -}}
+{%- endif -%}
 ```
 
-One marker per attachment. The expansion into a run of 280 happens later, in the **processor**, once the image processor has actually looked at the image and decided how many soft tokens it is worth:
+At this stage the image becomes exactly **one** `<|image|>` marker. The template does not inspect pixels and cannot yet know how many model positions the image needs.
+
+### 3. System messages are just an optional first turn
 
 ```python
-def replace_image_token(self, image_inputs: dict, image_idx: int) -> str:
-    num_soft_tokens = image_inputs["num_soft_tokens_per_image"][image_idx]
-    return f"{self.boi_token}{self.image_token * num_soft_tokens}{self.eoi_token}"
+messages = [
+    {"role": "system", "content": "Answer as a patient tutor."},
+    {"role": "user", "content": "What is a token?"},
+]
 ```
 
-So the pipeline is **template → one marker → processor → `<boi>` + N×`<image>` + `<eoi>`**, and N is data-dependent. That ordering is why `apply_chat_template(..., tokenize=True)` needs the images in hand; you cannot tokenize a multimodal prompt without processing its attachments first.
+Gemma 4 renders the first message as a `system` turn, then the `user` turn. It also accepts `developer` as an alias for that first role. This is model-specific grammar, not a universal chat standard.
 
-Audio does the same thing, but computes N from the waveform by *simulating the encoder*:
+These three rules are enough to read ordinary Gemma 4 prompts. Thinking and tools are optional extensions covered later in this chapter.
 
-```python
-def replace_audio_token(self, audio_inputs: dict, audio_idx: int) -> str:
-    mask = audio_inputs["input_features_mask"][audio_idx]
-    # Simulate two stride-2 conv blocks on the mask
-    t = len(mask)
-    for _ in range(2):
-        t_out = (t + 2 - 3) // 2 + 1
-        mask = mask[::2][:t_out]
-        t = len(mask)
-    return f"{self.boa_token}{self.audio_token * int(mask.sum())}{self.eoa_token}"
+## From one image marker to N reserved positions
+
+Now return to the image example. There are two distinct representations:
+
+```text
+after the template:   <|image|> What is the cat doing?
+after the processor:  <|image> <|image|> × N <image|> What is the cat doing?
 ```
 
-Two stride-2 convolutions, kernel 3, padding 1 — applied to the *mask*, not the features, purely to count. Why does the processor duplicate the encoder's arithmetic instead of asking it? Because the placeholders have to exist in `input_ids` **before** the model runs. The count must be predicted, and it must be exactly right. `_compute_audio_num_tokens` carries a docstring that says what happens when it is not:
+The names are annoyingly similar. The outside pair—`boi_token` and `eoi_token` in code—marks the boundary of the image block. The repeated `<|image|>` tokens are **placeholders**: empty seats that will later receive image vectors.
 
-> *Must match `audio_mask.sum()` from the audio tower or vLLM's `_merge_multimodal_embeddings` will raise on a length mismatch.*
-
-That same docstring flags a genuine trap for anyone reading the config:
-
-> *note: `config.conv_kernel_size=5` is the **conformer** depthwise conv, NOT this one*
-
-The subsampling convolutions are kernel 3 / stride 2 / padding 1 and are **not exposed in `Gemma4AudioConfig` at all** — they are architectural constants hard-coded in both the encoder and this counting function. If you ever change the audio stack, you must change two places. It is the kind of coupling that only source reading reveals.
-
-Video is the odd one out, and its handling is a small design lesson:
+`N` is not always 280. Under the default image budget, 280 is the maximum; a small or unusually shaped image can use fewer. `Gemma4Processor` first runs the image processor, reads `num_soft_tokens_per_image`, and then performs the expansion:
 
 ```python
-timestamp_str = [f"{int(seconds // 60):02d}:{int(seconds % 60):02d}" for seconds in metadata.timestamps]
-video_replacement = " ".join(
-    [f"{t} {self.boi_token}{self.video_token * num_soft_tokens}{self.eoi_token}" for t in timestamp_str]
+def replace_image_token(self, image_inputs, image_idx):
+    n = image_inputs["num_soft_tokens_per_image"][image_idx]
+    return f"{self.boi_token}{self.image_token * n}{self.eoi_token}"
+```
+
+This order explains an otherwise surprising API rule:
+
+- `apply_chat_template(..., tokenize=False)` can show a string with one marker without loading the image.
+- For a model-ready multimodal result, the processor needs the actual image (or its path/URL) so it can compute `N`, expand the marker, and tokenize the final string.
+
+The complete convenience call is therefore:
+
+```python
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
 )
 ```
 
-Each sampled frame becomes `MM:SS` **as literal text**, followed by that frame's soft-token run. Temporal information is not encoded in an embedding or a position index — it is written into the prompt as a string and read by the language model like any other text. Compare that with Qwen-VL's M-RoPE, which encodes time as a position dimension (see [landscape](../landscape.md)). Note also that video runs are wrapped in `<boi>`/`<eoi>`, the *image* markers, with `<|video|>` inside.
+Here the image path lives in the message content. If you instead render the text first and call `processor(text=..., images=...)` yourself, you are taking the same steps manually.
 
-### 3. The token map, and the `pad_token_id` shuffle
+## The token map: grammar tokens versus placeholders
 
-| Token | ID | Notes |
+The raw ID list only becomes useful after the tokens are grouped by function:
+
+| Family | Examples | What the IDs mean to the model |
 |---|---|---|
-| `<|image|>` | 258880 | repeated `num_soft_tokens_per_image` times |
-| `<|audio|>` | 258881 | repeated `ceil(duration_ms / 40)`, capped at 750 |
-| `<|video|>` | 258884 | added at runtime by the processor — see below |
-| `<boi>` / `<eoi>` | 255999 / 258882 | wrap image *and* video runs |
-| `<boa>` / `<eoa>` | 256000 / 258883 | wrap audio runs |
+| turn grammar | `<bos>`, `<\|turn>`, `<turn\|>` | ordinary learned tokens that describe conversation structure |
+| modality boundaries | `boi_token` / `eoi_token`, `boa_token` / `eoa_token` | ordinary learned tokens that mark where a modality block begins and ends |
+| modality placeholders | `<\|image\|>`, `<\|audio\|>`, `<\|video\|>` | reserved positions whose text embeddings will be discarded and replaced by modality features |
 
-A wonderfully honest line in the constructor:
+The exact Gemma 4 interface IDs are:
+
+| Config / processor field | ID | Use |
+|---|---:|---|
+| `boi_token_id` | 255999 | begin image or video block |
+| `boa_token_id` | 256000 | begin audio block |
+| `image_token_id` | 258880 | repeated once per image feature vector |
+| `audio_token_id` | 258881 | repeated once per audio feature vector |
+| `eoi_token_id` | 258882 | end image or video block |
+| `eoa_token_index` | 258883 | end audio block; `_index` is the name used by the config |
+| `video_token_id` | 258884 | repeated once per video feature vector |
+
+### Why placeholders are rewritten before embedding lookup
+
+First, a correction to an easy misreading: **the released Gemma 4 checkpoints do not currently have out-of-range placeholder IDs.** Their text `vocab_size` is 262,144, while the placeholder IDs are 258,880–258,884. `<|video|>` is added to the tokenizer at processor construction time, but its chosen ID still fits inside the model's embedding table.
+
+The source comment says “replace image id with PAD *if* the image token is OOV,” but the implementation performs the replacement unconditionally. That makes the path safe for custom or resized configurations where tokenizer and model vocabulary sizes may diverge. It also avoids depending on text embeddings that have no lasting meaning: placeholders are **interface sentinels**, not words the decoder needs to preserve.
+
+The model therefore follows this sequence:
+
+1. Find every placeholder position by comparing IDs.
+2. Temporarily replace those IDs with the valid `pad_token_id`.
+3. Perform the normal text embedding lookup.
+4. Overwrite the placeholder positions with real image/audio/video vectors.
+
+[Chapter 08 shows these four operations and the `masked_scatter` that performs step 4](../08-fusion-and-masks/index.md). For now, the important point is that the pad embedding is disposable. In the official checkpoints the substitution is harmless hygiene; in a configuration where a sentinel really is out of range, it also prevents an index error.
+
+The runtime addition of `<|video|>` explains why this can look suspicious:
 
 ```python
 # FIXME: add the token to config and ask Ryan to re-upload
 tokenizer.add_special_tokens({"additional_special_tokens": ["<|video|>"]})
 ```
 
-The video token is not in the shipped tokenizer; the processor patches it in every time it is constructed. Worth knowing if you ever compare `len(tokenizer)` before and after building a processor.
+Calling `add_special_tokens` does not in general resize a model's embedding matrix. In this checkpoint, however, the matrix already has enough reserved rows. So “video was added late, therefore its lookup is out of bounds” is **not** what happens here. The same safe substitution path handles all three placeholder types because none of their text embeddings are meant to survive.
 
-The placeholder IDs sit **above** the model's usable embedding range in some configurations, which is why the model does this before the embedding lookup (chapter 08 in full):
+## Why image batches are nested
 
-```python
-llm_input_ids = torch.where(multimodal_mask, self.config.text_config.pad_token_id, llm_input_ids)
-inputs_embeds = self.get_input_embeddings()(llm_input_ids)
-```
+This validation belongs here because placeholder expansion is a per-sample contract. For every sample, the number of image markers in its prompt must equal the number of images attached to that sample.
 
-Every placeholder is temporarily turned into a pad token, embedded (producing garbage that is about to be overwritten anyway), and then `masked_scatter` writes the real soft tokens over those positions. The alternative — indexing an embedding table with an out-of-range ID — is a crash.
+For a batch with two prompts:
 
-### 4. `validate_inputs`: the error you will actually hit
+| Batch sample | Markers in its prompt | Corresponding images |
+|---|---:|---|
+| sample 0 | 2 | `[img_a, img_b]` |
+| sample 1 | 0 | `[]` |
 
-```python
-n_images_in_text = [sample.count(self.image_token) for sample in text]
-n_images_in_images = [len(sublist) for sublist in images]
-if n_images_in_text != n_images_in_images:
-    raise ValueError("The total number of <|image|> tokens in the prompts should be the same as the number of images passed. ...")
-```
-
-Per-sample, not per-batch — a batch where sample 0 has two images and sample 1 has none must be passed as a nested list `[[img, img], []]`, not a flat list of two. `prepare_inputs_layout` calls `make_nested_list_of_images` to enforce that structure, and will also *invent* a text prompt if you pass images with no text at all:
+the manual processor call is:
 
 ```python
-if images and not text:
-    text = [" ".join([self.image_token] * len(image_list)) for image_list in images]
+texts = [prompt_with_two_image_markers, prompt_with_no_image_markers]
+images = [[img_a, img_b], []]
+inputs = processor(text=texts, images=images, return_tensors="pt")
 ```
 
-### 5. The turn grammar, thinking, and tools
+The outer list is the batch; each inner list contains the images for one sample. It is **not** the number of repeated placeholder tokens—each image in an inner list will independently expand to its own run of `N` placeholders. `validate_inputs` checks the two per-sample counts and raises before image features can be attached to the wrong prompt.
 
-Gemma 4's template is not ChatML. Turns are delimited by paired angle-brace tokens:
+When paths or URLs are embedded directly in `messages` and `apply_chat_template(..., tokenize=True)` is used, the processor builds this per-sample grouping for you.
 
-```
-<bos><|turn>system
-...system text and tool declarations...
-<turn|>
-<|turn>user
-<|image|>What is shown in this image?<turn|>
-<|turn>model
-```
+## Audio and video use the same contract
 
-Three things are worth reading the Jinja for.
+Nothing new about templates is required for the other modalities:
 
-**The system turn is synthesised, not just copied.** It is emitted if *any* of three conditions hold — there is a system message, there are tools, or thinking is enabled:
+| Template emits | Processor later reserves | Where `N` comes from |
+|---|---|---|
+| one `<\|image\|>` | `N` image slots | image size and selected token budget |
+| one `<\|audio\|>` | `N` audio slots | valid output length of the audio front end |
+| one `<\|video\|>` | `N` slots per sampled frame | frame sampling and image processing |
 
-```jinja
-{%- if enable_thinking or tools or (messages and messages[0]['role'] in ['system', 'developer']) -%}
-    {{- '<|turn>system\n' -}}
-    {%- if enable_thinking -%}{{- '<|think|>\n' -}}{%- endif -%}
-```
+You only need the contract here: **the number of placeholders must equal the number of feature vectors the corresponding tower will return**. The audio count is approximately one token per 40 ms and capped at 750, but deriving that number requires the audio tower. It is explained, with the two stride-2 convolutions, in [chapter 05](../05-audio-and-video/index.md). The optional audio section in [the hands-on notebook](notebooks/01_tokens_and_template.ipynb) calls `_compute_audio_num_tokens` on real waveform lengths without making it prerequisite reading.
 
-So `enable_thinking=True` is not a generation flag; it is a `<|think|>` token injected at the top of the first system turn. `developer` is accepted as an alias for `system`.
+Video similarly adds readable `MM:SS` timestamps before sampled-frame blocks; [chapter 05](../05-audio-and-video/index.md) owns the sampling details.
 
-**Thinking is stripped from history.** Assistant content passes through a `strip_thinking` macro that removes everything between `<|channel>` and `<channel|>`, and reasoning is only re-rendered for messages *after* the last user message:
+## Optional template features: thinking and tools
 
-```jinja
-{%- set thinking_gate = (loop.index0 > ns_turn.last_user_idx) or (preserve_thinking and message.get('tool_calls')) -%}
-```
+Once ordinary turns make sense, the remaining Jinja is easier to place.
 
-The model's reasoning from three turns ago is deliberately not fed back — it is scratch work, not context. `preserve_thinking=True` overrides this for tool-calling chains, where the reasoning that led to a call is worth keeping.
+### Thinking changes the rendered prompt
 
-**Tools are declared in a compact DSL, not JSON.** A tool declaration renders as `<|tool>declaration:name{description:<|"|>...<|"|>,parameters:{...},type:<|"|>OBJECT<|"|>}<tool|>`, where `<|"|>` is a dedicated string-quote *token*. A call comes back as `<|tool_call>call:get_weather{location:<|"|>SF<|"|>}<tool_call|>`. Using single tokens for structural punctuation instead of literal `"` characters is only marginally cheaper than JSON — measured on the weather tool above it saves about 6% — but it is much harder for the model to break: `<|"|>` is one token, so there is no such thing as a half-open or unescaped quote, and a parser can split on token IDs rather than attempting JSON recovery on model output. The template also refuses to paper over a common client bug:
+`enable_thinking=True` is an argument to the chat template, not to `generate()`. The template creates a system turn if needed and inserts `<|think|>` there. It also removes old reasoning spans from conversation history by default, so scratch work from earlier turns does not grow the prompt forever. The notebook renders the same conversation with thinking off and on so the difference is visible.
 
-```jinja
-{{- raise_exception("chat_template: tool_calls[].function.arguments must be a JSON object (mapping), not a string. Deserialize arguments before passing to the template.") -}}
-```
+### Tools add another serialisation format
 
-### 6. `padding_side="left"`, and why it is not optional
+When `tools=[...]` is passed, the system turn contains tool declarations. Gemma 4 serialises them in its own compact token-based DSL, and model tool calls use the matching syntax. You do not need to know ChatML or memorise this DSL: give `apply_chat_template` normal JSON-schema dictionaries and let the template serialise them. Inspect the rendered form only when debugging a tool call.
 
-Every example in the Gemma 4 docs constructs the processor the same way:
+The template deliberately rejects `tool_calls[].function.arguments` when it is still a JSON string; callers must deserialize it to a dictionary first. [The notebook](notebooks/01_tokens_and_template.ipynb) contains one complete rendered example.
+
+## Left padding: a generation convention, not a universal rule
+
+For batched generation with a decoder-only model, use:
 
 ```python
-processor = AutoProcessor.from_pretrained("google/gemma-4-E2B-it", padding_side="left")
+processor = AutoProcessor.from_pretrained(
+    "google/gemma-4-E2B-it",
+    padding_side="left",
+)
 ```
 
-With right padding, a batch of prompts of different lengths puts pad tokens *after* the real content, so each sequence's last real token sits at a different index — and `generate` appends new tokens at the end of the tensor, i.e. after the padding. Left padding aligns every sequence's final token at the same position, which is what the decode loop assumes. Get this wrong and you do not get an exception; you get quietly degraded output, which is worse.
+Why it helps is visible in a two-row batch:
 
-The matching habit on the way out:
-
-```python
-input_len = inputs["input_ids"].shape[-1]
-output = model.generate(**inputs, max_new_tokens=50)
-print(processor.decode(output[0][input_len:], skip_special_tokens=True))
+```text
+left padding                 right padding
+[PAD PAD A B C]              [A B C PAD PAD]
+[D   E   F G H]              [D E F G   H  ]
+             ↑ next-token logits are read from this final column
 ```
 
-`generate` returns prompt + completion. Slicing at `input_len` is how you get only what the model actually said.
+The standard decoder-only generation loop reads next-token logits from the last tensor position for every row. With left padding, that position is a real prompt token in every sample. With right padding, a shorter sample ends on a padding position; an attention mask prevents that position from attending *to padding*, but it does not turn its hidden state into the last real token's hidden state.
 
-## Design space
+Left padding is common for **batched decoder-only inference**, not for every task:
 
-- **Placeholder-run expansion** (Gemma 4, LLaVA, Qwen-VL): reserve N text positions, overwrite their embeddings. The LLM's code path never changes — it only ever sees a sequence of embeddings. Costs N real context slots per image, which is why the size of N (chapter 03) is such a consequential knob.
-- **Cross-attention injection** (Flamingo, Llama 3.2 Vision): visual features live outside the sequence and are attended to through dedicated layers. Context is not consumed, but the LLM needs new parameters and a modified forward pass.
-- **Fixed query compression** (BLIP-2): a Q-Former squeezes any image into exactly 32 tokens. Cheap and constant, but the bottleneck is unforgiving for dense text.
+- A single unpadded prompt has no left-versus-right issue.
+- Encoder-only models and causal-LM training commonly use right padding; training masks padded labels and does not ask every row's last column for the next token.
+- Left padding does not remove wasted padding compute or memory. Length bucketing and packed/continuous batching solve that problem.
+- Custom position-ID code or attention kernels may assume valid tokens form a left-aligned prefix. Transformers handles Gemma 4's supported generation path, but custom pipelines must preserve the attention mask and correct position IDs.
 
-Gemma 4 takes the first route and then spends its effort on making N controllable — the menu in chapter 03.
+So the practical rule is narrower and more useful: **left-pad mixed-length batches that you pass to Gemma 4 `generate()`; do not treat left padding as a universal tokenizer setting.** [Chapter 09](../09-generation-and-serving/index.md) returns to batching, cache behavior, and slicing completions from generated sequences.
 
-On timestamps, the split is just as clean: Gemma 4 writes `MM:SS` into the prompt as text; Qwen-VL encodes time as a RoPE dimension. Text costs tokens and is trivially interpretable; a position dimension is free but requires the whole stack to agree on it.
+## Source map
+
+| File | Symbol | Why read it |
+|---|---|---|
+| `processing_utils.py` | [`ProcessorMixin.apply_chat_template`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L1805), [`ProcessorMixin.__call__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L603) | the two-stage render/process path |
+| `processing_gemma4.py` | [`Gemma4Processor.prepare_inputs_layout`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L100), [`validate_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L122) | per-sample image grouping and validation |
+| `processing_gemma4.py` | [`replace_image_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L153) | one image marker → one boundary-wrapped placeholder run |
+| `processing_gemma4.py` | [`replace_audio_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L173), [`replace_video_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L157) | optional details, after chapter 05 |
+| `modeling_gemma4.py` | [`Gemma4Model.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2098) | consumer side; read in chapter 08 |
 
 ## Check yourself
 
-1. Why can't you call `apply_chat_template(messages, tokenize=True)` on a message list containing an image without also passing the image itself?
-2. A 3.4-second clip at 16kHz. Roughly how many `<|audio|>` placeholders, and what caps it?
-3. Where does `<|video|>` come from, and why is it not in `tokenizer.json`?
-4. You pass a batch of two prompts, the first with two images and the second with none, and get a `ValueError` about counts. What shape does `images` need to be?
-5. `enable_thinking=True` changes the rendered prompt. Where exactly does the change appear, and what does it look like?
-6. Your batched generations are subtly worse than your single generations. What is the first thing to check?
+1. What information does a chat template add that is absent from the raw user text?
+2. Why does the template emit one image marker while `input_ids` contains many image placeholder IDs?
+3. In `images=[[img_a, img_b], []]`, what do the outer and inner lists each represent?
+4. Does the runtime-added `<|video|>` exceed the released model's embedding table? Why does the model still replace it with `pad_token_id`?
+5. What exactly does `add_generation_prompt=True` append?
+6. When is left padding useful, and name one situation where right padding remains normal.
 
 ## Notebooks
 
 | Notebook | What it does | Hardware |
 |---|---|---|
-| `01_tokens_and_template.ipynb` | Expand a multimodal `messages` list one step at a time — raw template output, token IDs, decoded pieces — and locate every placeholder run by eye. Then a tool-calling round trip and a thinking-mode comparison | 🟢 CPU, tokenizer only |
-| [`02_tokenize_everything.ipynb`](notebooks/02_tokenize_everything.ipynb) | The wider view: how text, images, audio and video each become tokens across the field, and what the compression ratios look like | 🟢 CPU |
+| [`01_tokens_and_template.ipynb`](notebooks/01_tokens_and_template.ipynb) | Build one text prompt, then one image prompt; inspect the rendered string, expanded placeholder run, and IDs. Optional extensions cover audio counts, thinking, and tools | 🟢 CPU, tokenizer/processor only |
+| [`02_tokenize_everything.ipynb`](notebooks/02_tokenize_everything.ipynb) | A broader comparison of how text, images, and audio are discretised across model families; not required for the Gemma 4 path | 🟢 CPU |

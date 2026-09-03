@@ -1,253 +1,319 @@
-# 02 · Text I/O — Tokenizer、Chat Template 与占位符
+# 02 · Text I/O — 从 Messages 到模型输入
 
-**在数据流中的位置**：`messages ──► chat template ──► tokenizer ──► input_ids`
+这一章可以独立阅读。它只回答一个问题：**Python 里的聊天记录，怎样变成 Gemma 4 收到的整数序列？** 如果消息里带了一张图片，会有两条并行路径：
 
-多模态模型里"多模态"的部分，反直觉地从**文本**管线开始。在任何一个像素被处理之前，chat template 就已经决定了图像放在哪：它把一条 `{"type": "image"}` 展开成 280 个完全相同的占位符 token id，外面裹上 begin/end-of-image 标记。08 章会用真正的视觉特征覆盖掉这些占位符的 embedding。中间的一切，都是在一串扁平整数上做记账。
+```text
+messages ── chat template ──► 含一个 <|image|> 的 prompt 文本
+image    ── image processor ─► pixel_values + 数量 N
+                                      │
+prompt + N ── 展开图片标记 ──► 最终 prompt ── tokenizer ──► input_ids
+```
+
+本章沿着上面一条路走，并解释两条路在哪里汇合。[03 章](../03-image-processor/index.md)会解释图像处理器如何得到 `pixel_values` 和 `N`；[08 章](../08-fusion-and-masks/index.md)会解释模型怎样把预留的 `N` 个位置换成图像特征。现在不需要预先懂那两部分的实现。
 
 ## 你会学到
 
-1. `Gemma4Processor` 如何把 tokenizer、图像处理器、视频处理器、音频特征提取器合并到一个 `__call__` 背后
-2. `apply_chat_template` 如何把 `messages` 变成字符串，占位符段怎么算出来——包括 token 数取决于时长的**动态**音频情形
-3. 特殊 token 表，以及模型为什么必须在 embedding 查表前把占位符 id 临时改写成 `pad_token_id`
-4. Gemma 4 原生的 `system` 角色、可配置 thinking 模式与 function calling 格式
-5. 为什么批量生成时 `padding_side="left"` 是强制的
+1. chat template、tokenizer 与多模态 processor 各自负责什么
+2. 怎样从一轮最简单的对话开始读 Gemma 4 的 template
+3. 为什么一个图片标记最后会变成连续 `N` 个 placeholder ID
+4. 组 batch 时，为什么图片要按 sample 嵌套
+5. left padding 什么时候适用，又有什么代价
 
-## 特殊 token
+## 三个对象，三份工作
 
-| Token | ID | 用途 |
-|---|---|---|
-| `boi_token_id` | 255999 | 图像开始 |
-| `boa_token_id` | 256000 | 音频开始 |
-| `image_token_id` | 258880 | 图像占位符——重复 `image_seq_length`（默认 **280**）次 |
-| `audio_token_id` | 258881 | 音频占位符——重复 `ceil(时长ms / 40)` 次，上限 750 |
-| `eoi_token_id` | 258882 | 图像结束 |
-| `eoa_token_index` | 258883 | 音频结束 |
-| `video_token_id` | 258884 | 视频占位符 |
+这几个名字很容易混在一起，先把边界划清楚：
 
-每个音频 token 对应 40ms 不是随便定的：它来自音频塔对 10ms 帧做的 4× 时间下采样（05 章）。
+| 对象 | 输入 | 输出 | 工作 |
+|---|---|---|---|
+| chat template | 结构化的 `messages` | 一条 prompt 字符串 | 按 Gemma 4 训练时的语法序列化角色与内容 |
+| tokenizer | 字符串 | 整数 `input_ids` | 把字符串切成词表片段，再查出各自的 ID |
+| `Gemma4Processor` | 文本，以及可选的图片、音频、视频 | 一份可直接交给模型的 batch | 协调 tokenizer 和三个模态各自的预处理器 |
 
-## 源码地图
+Chat template 不是模型，也不要求你预先懂 ChatML。它就是一个**序列化器**。不同 chat model 训练时使用了不同的分隔符，因此同一段对话必须先写成各自的“方言”，然后才能 tokenize。
 
-| 文件 | 符号 | 作用 |
-|---|---|---|
-| `processing_utils.py` / `processing_gemma4.py` | [`Gemma4Processor.__call__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L648) | 四个模态共用的继承入口 |
-| `processing_gemma4.py` | [`prepare_inputs_layout`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L110)、[`validate_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L134) | 交错输入的顺序与一致性 |
-| | [`replace_image_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L169) / [`replace_audio_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L192) / [`replace_video_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L173) | 占位符段展开 |
-| | [`_get_num_multimodal_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L205)、[`_compute_audio_num_tokens`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L260) | 每份输入值多少个占位符 |
-| `modeling_gemma4.py` | [`Gemma4Model.get_placeholder_mask`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2231) | 消费端：把这些占位符再找回来 |
-| | [`Gemma4TextScaledWordEmbedding`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L1465) | 乘以 `√hidden_size` 的 embedding 查表 |
-
-## 源码走读
-
-### 1. `Gemma4Processor` 是四个处理器套一件风衣
-
-```python
-class Gemma4Processor(ProcessorMixin):
-    def __init__(self, feature_extractor, image_processor, tokenizer, video_processor,
-                 chat_template=None, image_seq_length: int = 280,
-                 audio_seq_length: int = 750, audio_ms_per_token: int = 40, **kwargs):
-```
-
-四个子处理器，一个对象。`AutoProcessor.from_pretrained` 从单个 `processor_config.json` 把四个都建出来，而 `processor(text=..., images=..., videos=..., audio=...)` 把每个参数路由给它的主人，再把结果合并成一个 `BatchFeature`。这是库里每个多模态模型的通用模式；在这里学会一次就够。
-
-构造函数的两个默认值是本章的全部枢纽：
-
-- `image_seq_length = 280` —— 一张图值多少个占位 token
-- `audio_ms_per_token = 40` —— 一个音频 token 值多少毫秒
-
-源码里的注释解释了 40 从哪来，这也是 05 章的承重事实：*"the SSCP convolution's 4× time reduction on 10ms frames."*
-
-### 2. chat template 只发出**一个** `<|image|>`，不是 280 个
-
-这是关于多模态 chat template 最常见的误解，值得说精确。把模板拉下来读：
+## 从一轮纯文本对话开始
 
 ```python
 from transformers import AutoProcessor
-proc = AutoProcessor.from_pretrained("google/gemma-4-E2B-it")
-print(proc.chat_template)   # 386 行 Jinja
+
+processor = AutoProcessor.from_pretrained("google/gemma-4-E2B-it")
+messages = [
+    {"role": "user", "content": "用一句话解释 tokenization。"}
+]
+
+prompt = processor.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True,
+)
+print(prompt)
 ```
 
-在消息循环里，一条 `image` 类型的内容项只产生这个：
+结果里最重要的结构是：
+
+```text
+<bos><|turn>user
+用一句话解释 tokenization。<turn|>
+<|turn>model
+```
+
+按照字面读就可以：
+
+- `<bos>` 表示整条序列开始。
+- `<|turn>user\n` 打开 user turn，`<turn|>` 把它关上。
+- `<|turn>model\n` 是一个内容为空的 model turn 头。`add_generation_prompt=True` 添加的就是它，用来告诉生成过程接下来轮到哪个角色说话。
+
+完成整条字符串之后，tokenizer 才把其中的普通文字和 turn 分隔符一起转成 ID：
+
+```python
+encoded = processor.tokenizer(prompt, return_tensors="pt")
+print(encoded["input_ids"].shape)
+```
+
+这就是最基本的管线。Jinja 只是实现 template 的语言：它循环 `messages`，按条件拼出这条字符串。
+
+## 从内到外读 template
+
+不需要一口气看懂 386 行 Jinja。先看所有 chat template 都必须做的两个决定。
+
+### 1. 写出角色，关上每一个 turn
+
+概念上，message loop 做的就是：
 
 ```jinja
+<|turn>{{ message['role'] }}
+{{ message['content'] }}<turn|>
+```
+
+真实 Jinja 还会做校验、处理 content list，但语法仍然是“打开角色、写入内容、关闭 turn”。历史里的 assistant 回复也没有特殊之处：它会成为一个已经闭合的 `model` turn，排在下一轮 `user` 前面。
+
+### 2. Content 可以是字符串，也可以是 list
+
+纯文本可以直接写字符串。多模态消息用 list，是为了明确文本和附件的先后顺序：
+
+```python
+messages = [{
+    "role": "user",
+    "content": [
+        {"type": "image", "path": "cat.jpg"},
+        {"type": "text", "text": "这只猫在做什么？"},
+    ],
+}]
+```
+
+对这份 list，template 的内层循环把每一项还原成文本：
+
+```jinja
+{%- if item.get('type') == 'text' -%}
+    {{- item['text'] -}}
 {%- elif item.get('type') in ['image', 'image_url'] -%}
     {{- '<|image|>' -}}
-{%- elif item.get('type') in ['audio', 'input_audio'] -%}
-    {{- '<|audio|>' -}}
-{%- elif item.get('type') == 'video' -%}
-    {{- '<|video|>' -}}
+{%- endif -%}
 ```
 
-每个附件一个标记。展开成 280 个的事发生在更晚的 **processor** 里，等图像处理器真正看过这张图、决定它值多少 soft token 之后：
+此时一张图片只变成**一个** `<|image|>` 标记。Template 不检查像素，因此现在还不知道图片最终需要占几个模型位置。
+
+### 3. System message 只是可选的第一轮
 
 ```python
-def replace_image_token(self, image_inputs: dict, image_idx: int) -> str:
-    num_soft_tokens = image_inputs["num_soft_tokens_per_image"][image_idx]
-    return f"{self.boi_token}{self.image_token * num_soft_tokens}{self.eoi_token}"
+messages = [
+    {"role": "system", "content": "像一位耐心的老师那样回答。"},
+    {"role": "user", "content": "什么是 token？"},
+]
 ```
 
-所以链条是 **模板 → 一个标记 → processor → `<boi>` + N×`<image>` + `<eoi>`**，而 N 依赖数据。这个顺序正是 `apply_chat_template(..., tokenize=True)` 必须拿到图像的原因；你没法在不处理附件的情况下 tokenize 一个多模态 prompt。
+Gemma 4 先把第一条渲染成 `system` turn，再渲染 `user` turn。它也接受 `developer` 作为第一个角色的别名。这是 Gemma 4 自己的语法，不是所有 chat model 共用的标准。
 
-音频做同样的事，但 N 是靠**模拟编码器**从波形算出来的：
+掌握这三条，已经足够阅读普通的 Gemma 4 prompt。Thinking 和 tools 是可选扩展，放在本章后面。
 
-```python
-def replace_audio_token(self, audio_inputs: dict, audio_idx: int) -> str:
-    mask = audio_inputs["input_features_mask"][audio_idx]
-    # Simulate two stride-2 conv blocks on the mask
-    t = len(mask)
-    for _ in range(2):
-        t_out = (t + 2 - 3) // 2 + 1
-        mask = mask[::2][:t_out]
-        t = len(mask)
-    return f"{self.boa_token}{self.audio_token * int(mask.sum())}{self.eoa_token}"
+## 从一个图片标记到 N 个预留位置
+
+回到图片例子。这里必须区分两种表示：
+
+```text
+template 之后：   <|image|> 这只猫在做什么？
+processor 之后：  <|image> <|image|> × N <image|> 这只猫在做什么？
 ```
 
-两次 stride-2 卷积、kernel 3、padding 1 —— 作用在 **mask** 而不是特征上，纯粹为了计数。为什么 processor 要复制编码器的算术而不是去问它？因为占位符必须在模型运行**之前**就存在于 `input_ids` 里。这个数必须被预测，而且必须分毫不差。`_compute_audio_num_tokens` 的 docstring 说明了不准会怎样：
+这些名字确实很像。外面一对在代码里叫 `boi_token` 和 `eoi_token`，标记图片块的边界。中间重复的 `<|image|>` 才是 **placeholder**：它们是一排空座位，稍后每个位置都会放入一个图像向量。
 
-> *Must match `audio_mask.sum()` from the audio tower or vLLM's `_merge_multimodal_embeddings` will raise on a length mismatch.*
-
-同一段 docstring 还标出一个读 config 的人一定会踩的坑：
-
-> *note: `config.conv_kernel_size=5` is the **conformer** depthwise conv, NOT this one*
-
-下采样卷积是 kernel 3 / stride 2 / padding 1，而且**在 `Gemma4AudioConfig` 里根本没有暴露** —— 它们是硬编码在编码器和这个计数函数里的架构常量。你若要改音频栈，得改两处。这类耦合只有读源码才看得见。
-
-视频是个异类，它的处理方式本身是一堂设计课：
+`N` 并不总是 280。默认图像预算下，280 是上限；较小或长宽比特殊的图片可能用得更少。`Gemma4Processor` 先运行 image processor，读取 `num_soft_tokens_per_image`，再展开标记：
 
 ```python
-timestamp_str = [f"{int(seconds // 60):02d}:{int(seconds % 60):02d}" for seconds in metadata.timestamps]
-video_replacement = " ".join(
-    [f"{t} {self.boi_token}{self.video_token * num_soft_tokens}{self.eoi_token}" for t in timestamp_str]
+def replace_image_token(self, image_inputs, image_idx):
+    n = image_inputs["num_soft_tokens_per_image"][image_idx]
+    return f"{self.boi_token}{self.image_token * n}{self.eoi_token}"
+```
+
+这个顺序解释了一个看起来有点反直觉的 API 规则：
+
+- `apply_chat_template(..., tokenize=False)` 不读取图片，也能展示带一个图片标记的字符串。
+- 要得到可直接给模型的多模态输入，processor 必须拿到图片本身（或路径/URL），才能算出 `N`、展开标记，再 tokenize 最终字符串。
+
+因此完整的便捷调用是：
+
+```python
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
 )
 ```
 
-每一个被采样的帧先变成 `MM:SS` 的**字面文本**，后面跟着该帧的 soft token 段。时间信息不是编码进 embedding 或位置下标的 —— 它作为字符串写进 prompt，被语言模型当作普通文本读取。对比 Qwen-VL 的 M-RoPE，后者把时间编码成一个位置维度（见 [landscape](../landscape.md)）。另外注意视频段被 `<boi>`/`<eoi>` 这对**图像**标记包裹，里面装的是 `<|video|>`。
+这里图片路径已经写在 message content 里。如果先单独渲染文本，再调用 `processor(text=..., images=...)`，只是手动完成同一套步骤。
 
-### 3. token 表，以及 `pad_token_id` 的腾挪
+## Token map：先分清语法 token 与 placeholder
 
-| Token | ID | 说明 |
+先按功能分类，原始 ID 表才有意义：
+
+| 类别 | 例子 | 这些 ID 对模型意味着什么 |
 |---|---|---|
-| `<\|image\|>` | 258880 | 重复 `num_soft_tokens_per_image` 次 |
-| `<\|audio\|>` | 258881 | 重复 `ceil(duration_ms / 40)` 次，上限 750 |
-| `<\|video\|>` | 258884 | 由 processor 在运行时加入 —— 见下 |
-| `<boi>` / `<eoi>` | 255999 / 258882 | 同时包裹图像**和**视频段 |
-| `<boa>` / `<eoa>` | 256000 / 258883 | 包裹音频段 |
+| turn 语法 | `<bos>`、`<\|turn>`、`<turn\|>` | 描述对话结构、拥有正常 learned embedding 的 token |
+| 模态边界 | `boi_token` / `eoi_token`、`boa_token` / `eoa_token` | 标记一个模态块从哪里开始、到哪里结束，拥有正常 learned embedding |
+| 模态 placeholder | `<\|image\|>`、`<\|audio\|>`、`<\|video\|>` | 预留的位置；它们的文本 embedding 会被丢弃，换成对应模态的特征 |
 
-构造函数里一行极其坦率的注释：
+Gemma 4 接口使用的具体 ID 是：
+
+| Config / processor 字段 | ID | 用途 |
+|---|---:|---|
+| `boi_token_id` | 255999 | 图像或视频块开始 |
+| `boa_token_id` | 256000 | 音频块开始 |
+| `image_token_id` | 258880 | 每个图像特征向量重复一次 |
+| `audio_token_id` | 258881 | 每个音频特征向量重复一次 |
+| `eoi_token_id` | 258882 | 图像或视频块结束 |
+| `eoa_token_index` | 258883 | 音频块结束；`_index` 是 config 里的真实命名 |
+| `video_token_id` | 258884 | 每个视频特征向量重复一次 |
+
+### 为什么查 embedding 前仍要改写 placeholder
+
+先纠正一个很容易产生的误读：**官方发布的 Gemma 4 checkpoint 目前并不存在 placeholder ID 越界。** 它们的文本 `vocab_size` 是 262,144，而 placeholder ID 是 258,880–258,884。`<|video|>` 的确是在 processor 构造时加入 tokenizer，但选中的 ID 仍然落在模型 embedding 表以内。
+
+源码注释写的是“如果 image token 是 OOV，就先换成 PAD”，但实际实现会无条件替换。这样做能保护 tokenizer 与模型词表大小不一致的自定义或 resize 配置；同时也避免依赖一份注定没有意义的文本 embedding：placeholder 是 processor 与模型约定的**接口哨兵**，不是 decoder 需要保留的文字。
+
+模型因此按下面的顺序处理：
+
+1. 先比较 ID，找出全部 placeholder 位置。
+2. 暂时把这些 ID 换成合法的 `pad_token_id`。
+3. 正常查询文本 embedding。
+4. 用真实的图像、音频或视频向量覆盖 placeholder 位置。
+
+[08 章会完整展示这四步，以及第 4 步使用的 `masked_scatter`](../08-fusion-and-masks/index.md)。目前只要记住：这里产生的 pad embedding 是一次性的。对官方 checkpoint 来说，这次替换是无害的防御性处理；如果自定义配置里的哨兵 ID 真的越界，它还能避免 index error。
+
+`<|video|>` 在运行时加入 tokenizer，确实很容易让人怀疑这里发生了越界：
 
 ```python
 # FIXME: add the token to config and ask Ryan to re-upload
 tokenizer.add_special_tokens({"additional_special_tokens": ["<|video|>"]})
 ```
 
-视频 token 不在发布的 tokenizer 里；processor 每次构造时现打补丁。如果你比较过构建 processor 前后的 `len(tokenizer)`，就知道这条值得记住。
+一般来说，调用 `add_special_tokens` 并不会自动 resize 模型的 embedding matrix。但这个 checkpoint 已经预留了足够多的行，所以“video token 后加，因此查表越界”**不是**这里真实发生的事。图像、音频、视频三类 placeholder 都走同一条安全替换路径，因为它们的文本 embedding 本来就不应该保留下来。
 
-在某些配置下占位符 id 超出模型可用的 embedding 范围，所以模型在查表前会做这件事（08 章详述）：
+## 为什么图片 batch 是嵌套 list
 
-```python
-llm_input_ids = torch.where(multimodal_mask, self.config.text_config.pad_token_id, llm_input_ids)
-inputs_embeds = self.get_input_embeddings()(llm_input_ids)
-```
+这段校验放在这里，是因为 placeholder 展开是一份逐 sample 的契约：每条 prompt 里图片标记的数量，必须等于这条 sample 实际附带的图片数量。
 
-每个占位符临时变成 pad token，被 embedding（产出一堆马上要被覆盖的垃圾），然后 `masked_scatter` 把真正的 soft token 写上去。另一种选择 —— 用越界 id 去索引 embedding 表 —— 是崩溃。
+例如一个 batch 有两条 prompt：
 
-### 4. `validate_inputs`：你真会撞上的那个错误
+| Batch sample | 自己的 prompt 中有几个图片标记 | 对应图片 |
+|---|---:|---|
+| sample 0 | 2 | `[img_a, img_b]` |
+| sample 1 | 0 | `[]` |
 
-```python
-n_images_in_text = [sample.count(self.image_token) for sample in text]
-n_images_in_images = [len(sublist) for sublist in images]
-if n_images_in_text != n_images_in_images:
-    raise ValueError("The total number of <|image|> tokens in the prompts should be the same as the number of images passed. ...")
-```
-
-是**逐样本**比对，不是整批。一个"样本 0 有两张图、样本 1 没有图"的 batch，必须以嵌套列表 `[[img, img], []]` 传入，而不是两个元素的扁平列表。`prepare_inputs_layout` 调用 `make_nested_list_of_images` 来强制这个结构，而且在你只传图不传文本时还会**替你编**一个 prompt：
+手动调用 processor 时应写成：
 
 ```python
-if images and not text:
-    text = [" ".join([self.image_token] * len(image_list)) for image_list in images]
+texts = [prompt_with_two_image_markers, prompt_with_no_image_markers]
+images = [[img_a, img_b], []]
+inputs = processor(text=texts, images=images, return_tensors="pt")
 ```
 
-### 5. 轮次语法、thinking 与 tools
+外层 list 是 batch；每个内层 list 装一条 sample 的图片。它**不是**重复 placeholder 的数量——内层的每张图片都会各自展开成一段长度为 `N` 的 placeholder run。`validate_inputs` 对比的正是这两个逐 sample 计数，从而在图像特征被接错 prompt 之前直接报错。
 
-Gemma 4 的模板不是 ChatML。轮次由成对的尖括号 token 分隔：
+如果图片路径或 URL 已经写在 `messages` 里，并且使用 `apply_chat_template(..., tokenize=True)`，processor 会自动替你建立这份逐 sample 分组。
 
-```
-<bos><|turn>system
-...系统文本与工具声明...
-<turn|>
-<|turn>user
-<|image|>What is shown in this image?<turn|>
-<|turn>model
-```
+## 音频和视频复用同一份契约
 
-有三处值得去读 Jinja 原文。
+另外两个模态不需要学习新的 template 概念：
 
-**system 轮是被合成出来的，不只是照抄。** 三个条件**任一**成立它就会出现 —— 有 system 消息、有 tools、或者开了 thinking：
+| Template 发出 | Processor 随后预留 | `N` 来自哪里 |
+|---|---|---|
+| 一个 `<\|image\|>` | `N` 个图像位置 | 图片尺寸与所选 token budget |
+| 一个 `<\|audio\|>` | `N` 个音频位置 | audio front end 的有效输出长度 |
+| 一个 `<\|video\|>` | 每个采样帧 `N` 个位置 | 帧采样与图像处理 |
 
-```jinja
-{%- if enable_thinking or tools or (messages and messages[0]['role'] in ['system', 'developer']) -%}
-    {{- '<|turn>system\n' -}}
-    {%- if enable_thinking -%}{{- '<|think|>\n' -}}{%- endif -%}
-```
+本章只需要记住这份契约：**placeholder 的数量必须等于对应 tower 最终返回的特征向量数量。** 音频大约每 40 ms 对应一个 token，上限为 750，但推导这个数字需要先理解 audio tower。[05 章](../05-audio-and-video/index.md)会从两层 stride-2 convolution 推出它。<a href="../../02-text-io/notebooks/01_tokens_and_template.html">动手 notebook</a> 里的可选音频部分则直接对不同波形长度调用 `_compute_audio_num_tokens`，不把 encoder 细节设成本章前置知识。
 
-所以 `enable_thinking=True` 不是生成参数，而是往第一个 system 轮顶部注入一个 `<|think|>` token。`developer` 被当作 `system` 的别名接受。
+视频还会在采样帧块前写入人能读懂的 `MM:SS` 时间戳；具体采样逻辑同样留给 [05 章](../05-audio-and-video/index.md)。
 
-**thinking 会从历史里被剥掉。** assistant 内容会经过 `strip_thinking` 宏，移除 `<|channel>` 与 `<channel|>` 之间的一切；而 reasoning 只对**最后一条 user 消息之后**的消息重新渲染：
+## 可选 template 功能：thinking 与 tools
 
-```jinja
-{%- set thinking_gate = (loop.index0 > ns_turn.last_user_idx) or (preserve_thinking and message.get('tool_calls')) -%}
-```
+普通 turn 已经理解之后，其余 Jinja 就容易定位了。
 
-模型三轮之前的推理是刻意不喂回去的 —— 那是草稿纸，不是上下文。`preserve_thinking=True` 会在工具调用链里覆盖这个行为，因为导向某次调用的推理值得保留。
+### Thinking 会改变渲染后的 prompt
 
-**工具用一套紧凑 DSL 声明，不是 JSON。** 一条工具声明渲染成 `<|tool>declaration:name{description:<|"|>...<|"|>,parameters:{...},type:<|"|>OBJECT<|"|>}<tool|>`，其中 `<|"|>` 是一个专门的字符串引号 **token**。用单个 token 而不是字面 `"` 来做结构标点，相对 JSON 只**略微**便宜 —— 在上面那个 weather 工具上实测约省 6% —— 但它让模型**难以破坏格式**：`<|"|>` 是一个 token，不存在半开或未转义的引号，解析器可以按 token id 切分，而不必对模型输出做 JSON 容错。模板也拒绝替一个常见的客户端 bug 遮丑：
+`enable_thinking=True` 是 chat template 参数，不是 `generate()` 参数。Template 会在需要时合成 system turn，并在其中插入 `<|think|>`。默认情况下，它还会从历史对话中移除旧 reasoning span，避免草稿推理随着轮数不断撑大 prompt。Notebook 会把同一段对话在 thinking 开、关时分别渲染，直接对比差异。
 
-```jinja
-{{- raise_exception("chat_template: tool_calls[].function.arguments must be a JSON object (mapping), not a string. Deserialize arguments before passing to the template.") -}}
-```
+### Tools 只是再多一层序列化
 
-### 6. `padding_side="left"`，以及它为什么不可选
+传入 `tools=[...]` 后，system turn 会包含工具声明。Gemma 4 用自己的紧凑 token DSL 序列化这些声明，模型的 tool call 也使用配套语法。你不需要懂 ChatML，也不需要背这套 DSL：把普通 JSON Schema 字典交给 `apply_chat_template`，让 template 负责序列化；只有调试工具调用时才需要查看渲染结果。
 
-Gemma 4 文档里每个例子构造 processor 的方式都一样：
+如果 `tool_calls[].function.arguments` 还是一条 JSON 字符串，template 会刻意拒绝它；调用方要先把它反序列化成字典。<a href="../../02-text-io/notebooks/01_tokens_and_template.html">Notebook</a> 保留了一份完整的渲染实例。
+
+## Left padding：生成阶段的惯例，不是普遍规则
+
+使用 decoder-only 模型做 batch generation 时，应这样加载：
 
 ```python
-processor = AutoProcessor.from_pretrained("google/gemma-4-E2B-it", padding_side="left")
+processor = AutoProcessor.from_pretrained(
+    "google/gemma-4-E2B-it",
+    padding_side="left",
+)
 ```
 
-用右侧 padding 时，一批长度不同的 prompt 会把 pad token 放在真实内容**之后**，于是每条序列最后一个真实 token 落在不同下标上 —— 而 `generate` 是在张量末尾追加新 token，也就是追加在 padding 后面。左侧 padding 让每条序列的末尾 token 对齐到同一位置，这正是解码循环所假设的。搞错不会抛异常；你只会安静地得到更差的输出，这更糟。
+把两条不同长度的序列排在一起，原因就很直观：
 
-对应的出口习惯：
-
-```python
-input_len = inputs["input_ids"].shape[-1]
-output = model.generate(**inputs, max_new_tokens=50)
-print(processor.decode(output[0][input_len:], skip_special_tokens=True))
+```text
+left padding                 right padding
+[PAD PAD A B C]              [A B C PAD PAD]
+[D   E   F G H]              [D E F G   H  ]
+             ↑ 下一 token 的 logits 从最后一列读取
 ```
 
-`generate` 返回 prompt + 补全。在 `input_len` 处切片才是拿到模型真正说了什么的方式。
+标准 decoder-only generation loop 会统一读取每一行最后一个 tensor 位置的 next-token logits。Left padding 保证这个位置对每条 sample 都是真实 prompt token。Right padding 会让短 sample 停在 padding 位置；attention mask 能阻止这个位置关注其他 padding，却不能把它的 hidden state 变成“最后一个真实 token”的 hidden state。
 
-## 设计空间
+Left padding 常见于 **decoder-only 的 batch inference**，不是所有任务：
 
-- **占位段展开**（Gemma 4、LLaVA、Qwen-VL）：预留 N 个文本位置，覆盖它们的 embedding。LLM 的代码路径完全不变 —— 它只见过一串 embedding。代价是每张图吃掉 N 个真实上下文槽位，这也是 N 的大小（03 章）如此要命的原因。
-- **交叉注意力注入**（Flamingo、Llama 3.2 Vision）：视觉特征活在序列之外，通过专门的层被 attend。不消耗上下文，但 LLM 需要新参数和改过的前向。
-- **固定 query 压缩**（BLIP-2）：Q-Former 把任意图像压成恰好 32 个 token。便宜且恒定，但对密集文字来说这个瓶颈毫不留情。
+- 单条未 padding 的 prompt 根本没有左右之分。
+- Encoder-only 模型和 causal LM training 通常仍用 right padding；训练会屏蔽 pad label，也不会要求每一行都从最后一列预测 next token。
+- Left padding 不会减少 padding 浪费的算力或显存。要解决这个问题，需要 length bucketing、packing 或 continuous batching。
+- 自定义 position ID 逻辑或 attention kernel 可能假设有效 token 是左对齐的连续前缀。Transformers 支持 Gemma 4 的标准生成路径；自定义管线仍需正确保留 attention mask 和 position IDs。
 
-Gemma 4 走第一条路，然后把力气花在让 N **可控**上 —— 也就是 03 章那张菜单。
+因此更准确、也更实用的规则是：**交给 Gemma 4 `generate()` 的变长 batch 使用 left padding；不要把它当成 tokenizer 的普遍设置。** [09 章](../09-generation-and-serving/index.md)会继续讲 batch、cache 与从生成序列中切掉 prompt。
 
-关于时间戳，分野同样干净：Gemma 4 把 `MM:SS` 当文本写进 prompt；Qwen-VL 把时间编码成一个 RoPE 维度。文本花 token 但极易解释；位置维度免费，但要求整条技术栈就此达成一致。
+## 源码地图
+
+| 文件 | 符号 | 为什么读它 |
+|---|---|---|
+| `processing_utils.py` | [`ProcessorMixin.apply_chat_template`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L1805)、[`ProcessorMixin.__call__`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/processing_utils.py#L603) | 渲染与处理这两个阶段 |
+| `processing_gemma4.py` | [`Gemma4Processor.prepare_inputs_layout`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L100)、[`validate_inputs`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L122) | 逐 sample 的图片分组与校验 |
+| `processing_gemma4.py` | [`replace_image_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L153) | 一个图片标记变成一段由边界包裹的 placeholder |
+| `processing_gemma4.py` | [`replace_audio_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L173)、[`replace_video_token`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/processing_gemma4.py#L157) | 可选细节，建议读完 05 章再看 |
+| `modeling_gemma4.py` | [`Gemma4Model.forward`](https://github.com/huggingface/transformers/blob/v5.14.1/src/transformers/models/gemma4/modeling_gemma4.py#L2098) | placeholder 的消费端；在 08 章阅读 |
 
 ## 自测
 
-1. 为什么不能对一个含图像的消息列表直接调 `apply_chat_template(messages, tokenize=True)` 而不同时传入图像本身？
-2. 一段 3.4 秒、16kHz 的音频。大约多少个 `<|audio|>` 占位符？上限由什么决定？
-3. `<|video|>` 从哪来？它为什么不在 `tokenizer.json` 里？
-4. 你传了两条 prompt，第一条带两张图、第二条没有图，然后收到一个关于数量的 `ValueError`。`images` 应该是什么形状？
-5. `enable_thinking=True` 改变了渲染后的 prompt。改变具体出现在哪里？长什么样？
-6. 你的批量生成结果比单条生成明显更差。第一个该检查的是什么？
+1. 原始 user text 里没有的哪些信息，是 chat template 补进去的？
+2. 为什么 template 只发出一个图片标记，而 `input_ids` 里有许多图片 placeholder ID？
+3. `images=[[img_a, img_b], []]` 中，外层和内层 list 各代表什么？
+4. 运行时加入的 `<|video|>` 是否超出了官方模型的 embedding 表？模型为什么仍把它换成 `pad_token_id`？
+5. `add_generation_prompt=True` 到底添加了什么？
+6. Left padding 在什么情况下有用？再说出一个 right padding 仍然常见的场景。
 
 ## Notebooks
 
 | Notebook | 内容 | 硬件 |
 |---|---|---|
-| `01_tokens_and_template.ipynb` | 把一条多模态 `messages` 一步步展开——模板原始输出、token id、逐段解码——肉眼定位每一段占位符；再走一遍 tool calling 与 thinking 模式对比 | 🟢 CPU，只需 tokenizer |
-| <a href="../../02-text-io/notebooks/02_tokenize_everything.html"><code>02_tokenize_everything.ipynb</code></a> | 更宽的视角：文本/图像/音频/视频在整个领域里各自怎么变成 token，压缩比是多少 | 🟢 CPU |
+| <a href="../../02-text-io/notebooks/01_tokens_and_template.html"><code>01_tokens_and_template.ipynb</code></a> | 先构造纯文本 prompt，再加入一张图片；查看渲染字符串、展开后的 placeholder run 与 ID。音频计数、thinking、tools 是可选进阶 | 🟢 CPU，只需 tokenizer/processor |
+| <a href="../../02-text-io/notebooks/02_tokenize_everything.html"><code>02_tokenize_everything.ipynb</code></a> | 横向比较不同模型家族怎样离散化文本、图像与音频；不是 Gemma 4 主线的必读内容 | 🟢 CPU |

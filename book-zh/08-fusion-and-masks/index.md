@@ -11,7 +11,7 @@
 ## 你会学到
 
 1. `get_placeholder_mask` 如何从 `input_ids` 或 `inputs_embeds` 找出图像/视频/音频位置，以及 `inputs_embeds` 那条路为什么必须跟一个嵌入后的 token 比较
-2. 占位符 id 为什么要在 embedding 查表前改写成 `pad_token_id`——避开了什么索引错误
+2. 官方 checkpoint 中的占位符 ID 明明没有越界，为什么查 embedding 前仍要改写成 `pad_token_id`
 3. `masked_scatter` 如何把 soft token 写进 `inputs_embeds`，占位符数量与 soft token 数量不一致时错误长什么样
 4. `mm_token_type_ids` 携带了什么，模型为什么除了 token id 之外还要它
 5. 双向视觉 mask 如何构造（`create_masks_for_vision_model`、`get_block_sequence_ids_for_mask`），"块"是什么，一个 prompt 里有两张图会发生什么
@@ -59,7 +59,7 @@ if inputs_embeds is None:
     inputs_embeds = self.get_input_embeddings()(llm_input_ids)
 ```
 
-占位符 id（258880–258884）可能超出 embedding 表的行数，所以查表前被改写成 `pad_token_id`（0）。这些位置得到的 embedding 毫无意义 —— 马上就要被覆盖 —— 但它们必须**合法**，因为越界索引是崩溃而不是警告。
+官方发布的 Gemma 4 checkpoint 使用 `vocab_size=262144`，所以其中的占位符 ID（258,880–258,884）目前都在表内。即便如此，代码仍会无条件把它们改写成 `pad_token_id`（0）。这些位置的 embedding 本来就是一次性的——马上会被覆盖；同时，这次改写也保护了 placeholder 真正越界的自定义或 resize 配置，否则查表会直接触发 index error。
 
 PLE 也享受同等待遇，只是把 pad embedding 显式顶了上去：
 

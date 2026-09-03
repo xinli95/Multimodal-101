@@ -13,7 +13,7 @@ Note that this is **not on in every size**. The 31B and 26B-A4B checkpoints set 
 ## What you will learn
 
 1. How `get_placeholder_mask` finds image/video/audio positions from either `input_ids` or `inputs_embeds`, and why the `inputs_embeds` path has to compare against an embedded token
-2. Why placeholder IDs are rewritten to `pad_token_id` before the embedding lookup — and what index error that avoids
+2. Why placeholder IDs are rewritten to `pad_token_id` before the embedding lookup, even though the released checkpoints keep them in range
 3. How `masked_scatter` writes soft tokens into `inputs_embeds`, and how shape mismatches show up when the placeholder count and the soft-token count disagree
 4. What `mm_token_type_ids` carries and why the model wants it in addition to the token IDs
 5. How the bidirectional-vision mask is built (`create_masks_for_vision_model`, `get_block_sequence_ids_for_mask`), what a "block" is, and what happens with two images in one prompt
@@ -65,7 +65,7 @@ if inputs_embeds is None:
     inputs_embeds = self.get_input_embeddings()(llm_input_ids)
 ```
 
-Placeholder IDs (258880–258884) can exceed the embedding table's row count, so they are rewritten to `pad_token_id` (0) before lookup. The resulting embeddings at those positions are meaningless — they are about to be overwritten — but they must be *valid*, because an out-of-range index is a crash, not a warning.
+The released Gemma 4 checkpoints have `vocab_size=262144`, so their placeholder IDs (258,880–258,884) are currently in range. Nevertheless, the code rewrites them to `pad_token_id` (0) unconditionally. The resulting embeddings are deliberately disposable—they are about to be overwritten—and the rewrite also protects custom or resized configurations in which a placeholder really is out of range. In that case, skipping it would cause an index error.
 
 PLE gets the same treatment, with the pad embedding substituted explicitly:
 
