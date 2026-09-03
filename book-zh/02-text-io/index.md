@@ -311,6 +311,20 @@ Left padding 常见于 **decoder-only 的 batch inference**，不是所有任务
 5. `add_generation_prompt=True` 到底添加了什么？
 6. Left padding 在什么情况下有用？再说出一个 right padding 仍然常见的场景。
 
+<details>
+<summary>展开答案</summary>
+
+<ol>
+<li>Template 会补上角色名、turn 边界、序列/控制 token、模态标记，以及按需加入的空 model turn 头；这些信息都不在原始 user text 里。</li>
+<li>Template 只知道“这里有一张图片”，所以先发出一个标记。Processor 检查图片后算出 <code>N</code>，再把这个标记展开成恰好 <code>N</code> 个预留位置。</li>
+<li>外层 list 表示 batch；每个内层 list 装属于一条 sample 的图片。因此 sample 0 有两张图，sample 1 没有图。</li>
+<li>没有。官方模型有 262,144 行 embedding，而 <code>video_token_id=258884</code>，仍在范围内。模型依然换成 <code>pad_token_id</code>，是因为 placeholder embedding 本来就会被丢弃，同时这条路径也能保护 ID 真正越界的自定义配置。</li>
+<li>它会追加一个内容为空的 <code>&lt;|turn&gt;model\n</code> 头，表示接下来生成的内容属于 model 角色。</li>
+<li>把不同长度的 prompt 组成 batch，交给 decoder-only 模型生成时适合 left padding，因为每行最后一个位置都是真实 prompt token。Causal-LM 训练和 encoder-only 任务仍常用 right padding；单条未 padding prompt 则没有左右之分。</li>
+</ol>
+
+</details>
+
 ## Notebooks
 
 | Notebook | 内容 | 硬件 |

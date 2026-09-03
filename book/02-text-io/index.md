@@ -311,6 +311,20 @@ So the practical rule is narrower and more useful: **left-pad mixed-length batch
 5. What exactly does `add_generation_prompt=True` append?
 6. When is left padding useful, and name one situation where right padding remains normal.
 
+<details>
+<summary>Show answers</summary>
+
+<ol>
+<li>The template adds role labels, turn boundaries, sequence/control tokens, modality markers, and—when requested—the empty model-turn header that starts generation.</li>
+<li>The template knows only that an image occurs at that point, so it emits one marker. After inspecting the image, the processor computes <code>N</code> and expands that marker into exactly <code>N</code> reserved positions.</li>
+<li>The outer list is the batch. Each inner list contains the images belonging to one sample: two for sample 0 and none for sample 1.</li>
+<li>No. The released model has 262,144 embedding rows and <code>video_token_id=258884</code>, so the ID is in range. The model still substitutes <code>pad_token_id</code> because placeholder embeddings are disposable and because the same path protects custom configurations where an ID really is out of range.</li>
+<li>It appends an empty <code>&lt;|turn&gt;model\n</code> header, indicating that the next generated content belongs to the model role.</li>
+<li>Left padding is useful when mixed-length prompts are batched for decoder-only generation, because every row then ends on a real prompt token. Right padding remains normal for causal-LM training and encoder-only workloads; a single unpadded prompt needs neither.</li>
+</ol>
+
+</details>
+
 ## Notebooks
 
 | Notebook | What it does | Hardware |
